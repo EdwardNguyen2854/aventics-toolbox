@@ -1,0 +1,11 @@
+/build/
+/dist/
+/release/
+*.user
+*.suo
+*.pdb
+*.ilk
+*.obj
+*.exp
+*.lib
+*.log

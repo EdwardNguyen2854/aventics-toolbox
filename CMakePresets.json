@@ -1,0 +1,19 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "creo9-x64-release",
+      "displayName": "Creo 9 x64 Release",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release",
+      "configurePreset": "creo9-x64-release",
+      "configuration": "Release"
+    }
+  ]
+}
