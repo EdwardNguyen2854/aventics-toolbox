@@ -75,6 +75,7 @@ constexpr char kInspFamily[] = "InspFamily";
 constexpr char kInspGeneric[] = "InspGeneric";
 constexpr char kInspStep[] = "InspStep";
 constexpr char kInspArrange[] = "InspArrange";
+constexpr char kInspRowsAlongX[] = "InspRowsAlongX";
 constexpr char kInspColumns[] = "InspColumns";
 constexpr char kInspGap[] = "InspGap";
 constexpr char kInspActiveAsm[] = "InspActiveAsm";
@@ -193,6 +194,7 @@ bool ReadInspectionOptions(InspectionOptions& options, std::wstring& error) {
     options.includeGenericWhenFamilyExists = UiUtils::GetCheck(kDialog, kInspGeneric, false);
     options.includeStep = UiUtils::GetCheck(kDialog, kInspStep, true);
     options.autoArrange = UiUtils::GetCheck(kDialog, kInspArrange, true);
+    options.arrangeRowsAlongX = UiUtils::GetCheck(kDialog, kInspRowsAlongX, false);
     if (!options.includeParts && !options.includeAssemblies && !options.includeStep) {
         error = L"Select at least one source type: Creo parts, assemblies, or STEP.";
         return false;
@@ -479,6 +481,7 @@ void UpdateControls() {
     for (const char* check : {kInspRecursive, kInspLatest, kInspParts, kInspAssemblies,
                               kInspFamily, kInspGeneric, kInspStep, kInspArrange})
         UiUtils::EnableCheck(kDialog, check, !running);
+    UiUtils::EnableCheck(kDialog, kInspRowsAlongX, !running && autoArrange);
     UiUtils::EnableInput(kDialog, kInspFolder, !running);
     UiUtils::EnableInput(kDialog, kInspColumns, !running && autoArrange);
     UiUtils::EnableInput(kDialog, kInspGap, !running && autoArrange);
@@ -1002,6 +1005,7 @@ void SaveUiState() {
     context.inspectionIncludeGeneric = UiUtils::GetCheck(kDialog, kInspGeneric, false);
     context.inspectionStep = UiUtils::GetCheck(kDialog, kInspStep, true);
     context.inspectionAutoArrange = UiUtils::GetCheck(kDialog, kInspArrange, true);
+    context.inspectionRowsAlongX = UiUtils::GetCheck(kDialog, kInspRowsAlongX, false);
     int columns = context.inspectionColumns;
     double gap = context.inspectionGap;
     if (ParsePositiveInt(UiUtils::GetInput(kDialog, kInspColumns), columns)) context.inspectionColumns = columns;
@@ -1064,7 +1068,8 @@ void SetupCallbacks() {
     for (const char* check : {kWeakRecursive, kWeakLatest}) RegisterCheck(check, OnWeakSetupChanged);
     for (const char* check : {kAccRecursive, kAccLatest, kAccParts, kAccAssemblies}) RegisterCheck(check, OnAccSetupChanged);
     for (const char* check : {kInspRecursive, kInspLatest, kInspParts, kInspAssemblies,
-                              kInspFamily, kInspGeneric, kInspStep, kInspArrange}) RegisterCheck(check, OnInspSetupChanged);
+                              kInspFamily, kInspGeneric, kInspStep, kInspArrange, kInspRowsAlongX})
+        RegisterCheck(check, OnInspSetupChanged);
     RegisterInput(kWeakFolder, OnWeakSetupChanged);
     RegisterInput(kAccFolder, OnAccSetupChanged);
     RegisterInput(kInspFolder, OnInspSetupChanged);
@@ -1106,6 +1111,7 @@ void RestoreState() {
     UiUtils::SetCheck(kDialog, kInspGeneric, context.inspectionIncludeGeneric);
     UiUtils::SetCheck(kDialog, kInspStep, context.inspectionStep);
     UiUtils::SetCheck(kDialog, kInspArrange, context.inspectionAutoArrange);
+    UiUtils::SetCheck(kDialog, kInspRowsAlongX, context.inspectionRowsAlongX);
     UiUtils::SetInput(kDialog, kInspColumns, std::to_wstring(context.inspectionColumns));
     UiUtils::SetInput(kDialog, kInspGap, DoubleText(context.inspectionGap));
     UiUtils::SetProgress(kDialog, kWeakProgress, 0, 1);

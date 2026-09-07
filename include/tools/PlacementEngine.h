@@ -17,4 +17,5 @@ private:
     double currentX_ = 0.0;
     double currentY_ = 0.0;
     double rowDepth_ = 0.0;
+    double rowWidth_ = 0.0;
 };

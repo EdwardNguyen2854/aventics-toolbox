@@ -82,7 +82,7 @@ Creo 9
 
 Folder discovery, model loading, session preservation, family-table handling, STEP import, progress and cancellation are shared common services rather than duplicated per tool.
 
-The v0.3.0 interface adds a consistent choose/configure/run/review flow, selection-or-folder source modes for QC, searchable issue views, selected-result details, strict Inspection placement validation and operation feedback that remains visible while switching tabs.
+The v0.3.0 interface adds a consistent choose/configure/run/review flow, selection-or-folder source modes for QC, searchable issue views, selected-result details, strict Inspection placement validation, horizontal X-axis row arrangement, and operation feedback that remains visible while switching tabs.
 
 ## Target environment used for this project
 

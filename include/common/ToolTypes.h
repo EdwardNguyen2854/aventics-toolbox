@@ -110,6 +110,8 @@ struct InspectionOptions {
     bool includeGenericWhenFamilyExists = false;
     bool includeStep = true;
     bool autoArrange = true;
+    // false keeps the original layout; true makes completed rows advance along X.
+    bool arrangeRowsAlongX = false;
     int columns = 5;
     double gap = 50.0; // active assembly units
 };

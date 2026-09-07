@@ -30,7 +30,7 @@ The v0.3.0 interaction model is consistent across tools:
 choose source -> configure options -> run -> filter/review results -> open model or feature
 ```
 
-Weak Dimensions and Accuracy each expose one primary run action and switch between Creo selection and folder input. Their result tables support text search, an Issues-only view, selected-row details and contextual model actions. Inspection groups its active target, source filters and placement settings, with strict validation for columns and gap.
+Weak Dimensions and Accuracy each expose one primary run action and switch between Creo selection and folder input. Their result tables support text search, an Issues-only view, selected-row details and contextual model actions. Inspection groups its active target, source filters and placement settings, with strict validation for columns and gap. Auto arrange supports both the original Y-axis row progression and an X-axis horizontal row progression.
 
 A shared footer reports the owning operation and cancellation state from every tab. While an operation runs, callbacks guard and disable source, run and clear controls so the frozen queue cannot be replaced. Tab navigation and result review remain available.
 

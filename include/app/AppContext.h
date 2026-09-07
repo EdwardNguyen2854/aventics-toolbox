@@ -31,6 +31,7 @@ public:
     bool inspectionIncludeGeneric = false;
     bool inspectionStep = true;
     bool inspectionAutoArrange = true;
+    bool inspectionRowsAlongX = false;
     int inspectionColumns = 5;
     double inspectionGap = 50.0;
 

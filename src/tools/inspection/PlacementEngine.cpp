@@ -23,6 +23,7 @@ void PlacementEngine::Reset() {
     currentX_ = 0.0;
     currentY_ = 0.0;
     rowDepth_ = 0.0;
+    rowWidth_ = 0.0;
 }
 
 ProError PlacementEngine::NextTransform(ProMdl model, ProMatrix matrix) {
@@ -43,14 +44,27 @@ ProError PlacementEngine::NextTransform(ProMdl model, ProMatrix matrix) {
     matrix[3][1] = currentY_ - outline[0][1];
     matrix[3][2] = -outline[0][2];
 
-    rowDepth_ = std::max(rowDepth_, depth);
-    currentX_ += width + options_.gap;
-    ++currentColumn_;
-    if (currentColumn_ >= options_.columns) {
-        currentColumn_ = 0;
-        currentX_ = 0.0;
-        currentY_ += rowDepth_ + options_.gap;
-        rowDepth_ = 0.0;
+    if (options_.arrangeRowsAlongX) {
+        // Transpose the original grid: items advance on Y and completed rows on X.
+        rowWidth_ = std::max(rowWidth_, width);
+        currentY_ += depth + options_.gap;
+        ++currentColumn_;
+        if (currentColumn_ >= options_.columns) {
+            currentColumn_ = 0;
+            currentY_ = 0.0;
+            currentX_ += rowWidth_ + options_.gap;
+            rowWidth_ = 0.0;
+        }
+    } else {
+        rowDepth_ = std::max(rowDepth_, depth);
+        currentX_ += width + options_.gap;
+        ++currentColumn_;
+        if (currentColumn_ >= options_.columns) {
+            currentColumn_ = 0;
+            currentX_ = 0.0;
+            currentY_ += rowDepth_ + options_.gap;
+            rowDepth_ = 0.0;
+        }
     }
     return PRO_TK_NO_ERROR;
 }

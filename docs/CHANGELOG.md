@@ -9,6 +9,7 @@
 - Added shared operation status and cancellation feedback visible from every tab.
 - Prevented browse, run and clear actions from changing an active operation.
 - Added strict Inspection columns/gap validation and disabled placement inputs when Auto arrange is off.
+- Added an Inspection option to arrange completed rows along the X axis (horizontal) instead of Y.
 - Grouped Inspection target, source and placement settings and restored the missing Clear results action.
 - Preserved paths, source modes, filters and placement options while reopening the dialog in a Creo session.
 - Clarified partial-result, selection-cancel and inspection no-save behavior.
