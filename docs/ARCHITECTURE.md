@@ -1,4 +1,4 @@
-# Aventics Toolbox v0.5.1 Architecture
+# Aventics Toolbox v0.5.2 Architecture
 
 ## Product boundary
 
@@ -11,39 +11,67 @@ Creo 9
   -> Aventics Toolbox Control Panel
        -> Weak Dimensions GUI
        -> Accuracy GUI
-       -> Inspection GUI
+       -> Inspection Builder GUI
        -> Instance Builder GUI
 ```
 
-The tools remain internal C++ modules in one DLL. v0.5.1 refines the native UI shell and resource layout without changing the application/DLL boundary.
+The tools remain internal C++ modules in one DLL. v0.5.2 keeps the v0.5.x standalone-dialog architecture and refines the native UI hierarchy without changing the application/DLL boundary.
 
 ## UI shell
 
-The Control Panel is the entry GUI. Selecting a tool exits the launcher view and opens that tool's standalone native Creo dialog. Each tool dialog contains:
+The Control Panel is the entry GUI. Selecting a tool exits the launcher view and opens that tool's standalone native Creo dialog.
 
-- its source/options/results controls,
-- shared operation status and cancellation,
-- a **Full screen** action,
-- a **Home** action returning to the Control Panel,
-- a close action.
+The v0.5.2 shell follows a consistent hierarchy:
 
-v0.5.1 reduces repeated explanatory copy, compacts related controls into fewer rows, and gives result tables more visible space while keeping the existing native Creo component IDs and callbacks.
+```text
+header
+  -> Toolbox navigation
+  -> tool title / context
+  -> Maximize / restore
+  -> Close
+
+setup / primary action
+  -> source and options
+  -> one main operation
+
+results
+  -> summary + filters
+  -> expandable table
+  -> selected-row details
+  -> secondary actions
+
+footer
+  -> operation status
+  -> Cancel
+```
+
+The Control Panel groups read-only QC separately from assembly-modifying tools and shows the current active Creo model. Assembly-tool context explicitly indicates whether an active assembly is available. Inspection Builder and Instance Builder continue to never save automatically.
+
+Weak Dimensions and Accuracy retain their existing selection/folder boolean state for compatibility, but the user-facing wording now presents it clearly as **Use selected parts/models** with folder controls acting as the alternate source.
+
+Inspection Builder uses a two-column setup area: **Source** contains discovery/model/family filters and **Placement** contains arrangement, direction, plane, columns, and gap.
+
+Instance Builder presents the existing logic as four explicit stages: **1 Source -> 2 Requested Codes -> 3 Layout -> 4 Build**. The deterministic plan/result summary is placed in the Results header so requested/resolved/missing counts stay visible with the filter controls.
 
 Tool navigation is blocked while an operation is active so an in-progress dialog is not destroyed. Session state is stored in `AppContext`, therefore paths, filters, results, placement settings, and Instance Builder input survive navigation between the Control Panel and tool dialogs.
 
-The native resources are split into five files:
+The native resources remain split into five files:
 
 ```text
 aventics_toolbox.res            # Control Panel
 aventics_weak.res               # Weak Dimensions
 aventics_accuracy.res           # Accuracy
-aventics_inspection.res         # Inspection
+aventics_inspection.res         # Inspection Builder
 aventics_instance_builder.res   # Instance Builder
 ```
 
-All five files are mirrored under `text/usascii/resource`. `package-release.ps1` verifies SHA-256 parity for every resource pair before packaging.
+All five files are mirrored under `text/usascii/resource`. `package-release.ps1` verifies SHA-256 parity for every resource pair before packaging. Labels remain ASCII-only.
 
-The Full screen action uses Creo TOOLKIT dialog sizing APIs and expands the active tool dialog to the screen-relative maximum size.
+## Window sizing
+
+The v0.5.2 **Maximize / restore** action replaces the one-way v0.5.1 full-screen behavior. Before maximizing, the controller reads the dialog's current horizontal and vertical screen-relative sizes with `ProUIDialogHorzsizeGet()` and `ProUIDialogVertsizeGet()`. It then expands the active tool dialog to the screen-relative maximum using the existing size-set APIs. A second activation restores the saved dimensions.
+
+The saved maximize state is scoped to the currently active tool dialog and resets when navigating to another standalone view.
 
 ## Shared services
 
@@ -93,7 +121,7 @@ Parts and assemblies. Read-only `ProSolidAccuracyGet()` check:
 PASS = ABSOLUTE and value = 0.001 (within floating comparison epsilon)
 ```
 
-## Inspection Assembly Builder
+## Inspection Builder
 
 This tool intentionally modifies only the currently active assembly by adding component features. It never saves automatically.
 
@@ -119,7 +147,7 @@ Placement modes:
 
 Instance Builder accepts requested codes, allocates deterministic row/column cells, searches exact standalone/family-instance names, and assembles resolved models unconstrained to the active assembly.
 
-v0.5.0 gives the request field a larger native multiline area and an explicit 32,767-character maximum length. The shared textarea helper checks the current enabled state before changing sensitivity, preventing input callbacks from unnecessarily re-enabling the focused multiline control during a paste.
+The request field uses a native multiline area with a 32,767-character maximum length. The shared textarea helper checks the current enabled state before changing sensitivity, preventing input callbacks from unnecessarily re-enabling the focused multiline control during a paste.
 
 Search and assembly remain intentionally separated:
 
@@ -145,7 +173,7 @@ Duplicate requested codes keep independent planned cells. Final results can be e
 - No automatic weak-dimension repair.
 - No accuracy correction.
 - Folder QC never erases models that existed in the session before that model's scan.
-- Inspection and Instance Builder do not erase models used by components they add.
+- Inspection Builder and Instance Builder do not erase models used by components they add.
 - Inspection Cancel stops between models; it does not roll back already-added components.
 - Instance Builder Cancel during source search adds no components because assembly is deferred until resolution completes.
 - Tool navigation is prevented during an active operation.
