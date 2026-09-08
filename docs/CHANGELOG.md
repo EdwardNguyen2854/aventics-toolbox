@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.2
+
+- Reworked the native UI hierarchy across the Control Panel and all four standalone tool dialogs without changing the v0.5.x architecture.
+- Moved **Toolbox**, **Maximize / restore**, and **Close** into tool headers and reduced the shared footer to operation status plus **Cancel**.
+- Replaced the one-way full-screen sizing action with reversible maximize/restore behavior that saves and restores the active dialog's previous native size.
+- Added active-model/assembly context to the Control Panel so assembly-tool readiness is visible before opening a builder.
+- Renamed **Run all checks** to **Run QC on selection** and clarified Weak Dimensions / Accuracy source wording as **Use selected parts/models** versus folder mode.
+- Moved result summaries beside each **RESULTS** heading, kept filters/search with the results header, and kept long technical detail in the selected-row detail area.
+- Renamed Weak Dimensions **Feature** to **Go to feature** and standardized secondary Clear/export actions away from the primary action path.
+- Redesigned Inspection Builder into a two-column **Source** / **Placement** setup area and clarified row/plane checkbox semantics.
+- Redesigned Instance Builder's existing flow as **1 Source -> 2 Requested Codes -> 3 Layout -> 4 Build**, including **Preview plan** wording and visible plan/build summary beside result filtering.
+- Increased visible result rows where the new hierarchy freed vertical space while keeping resource labels ASCII-only.
+- Synchronized CMake, version macros, resource titles, packaging, README, architecture notes, and version metadata to v0.5.2.
+
 ## 0.5.1
 
 - Refined the Control Panel and all four tool dialogs with tighter native Creo grid layouts and less vertical whitespace.
