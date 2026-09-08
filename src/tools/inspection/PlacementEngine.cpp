@@ -36,18 +36,27 @@ ProError PlacementEngine::NextTransform(ProMdl model, ProMatrix matrix) {
     if (err != PRO_TK_NO_ERROR) return err;
 
     const double width = std::max(1.0, std::abs(outline[1][0] - outline[0][0]));
-    const double depth = std::max(1.0, std::abs(outline[1][1] - outline[0][1]));
+    const double secondarySpan = options_.useZAxisForRows
+        ? std::max(1.0, std::abs(outline[1][2] - outline[0][2]))
+        : std::max(1.0, std::abs(outline[1][1] - outline[0][1]));
 
     // Component translation is represented by row 3 in ProMatrix.
-    // Offset the model's minimum extents so each item starts at the cell origin.
+    // X always remains the primary layout axis. The secondary layout axis is
+    // Y by default, or Z when the Inspection Z-axis option is enabled.
     matrix[3][0] = currentX_ - outline[0][0];
-    matrix[3][1] = currentY_ - outline[0][1];
-    matrix[3][2] = -outline[0][2];
+    if (options_.useZAxisForRows) {
+        matrix[3][1] = -outline[0][1];
+        matrix[3][2] = currentY_ - outline[0][2];
+    } else {
+        matrix[3][1] = currentY_ - outline[0][1];
+        matrix[3][2] = -outline[0][2];
+    }
 
     if (options_.arrangeRowsAlongX) {
-        // Transpose the original grid: items advance on Y and completed rows on X.
+        // Transpose the grid: items advance on the secondary axis and completed
+        // rows advance on X. The secondary axis is Y or Z according to the option.
         rowWidth_ = std::max(rowWidth_, width);
-        currentY_ += depth + options_.gap;
+        currentY_ += secondarySpan + options_.gap;
         ++currentColumn_;
         if (currentColumn_ >= options_.columns) {
             currentColumn_ = 0;
@@ -56,7 +65,7 @@ ProError PlacementEngine::NextTransform(ProMdl model, ProMatrix matrix) {
             rowWidth_ = 0.0;
         }
     } else {
-        rowDepth_ = std::max(rowDepth_, depth);
+        rowDepth_ = std::max(rowDepth_, secondarySpan);
         currentX_ += width + options_.gap;
         ++currentColumn_;
         if (currentColumn_ >= options_.columns) {

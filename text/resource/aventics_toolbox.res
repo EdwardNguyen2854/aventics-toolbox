@@ -157,7 +157,7 @@
     (CheckButton InspRecursive) (CheckButton InspLatest) (CheckButton InspParts)
     (CheckButton InspAssemblies) (CheckButton InspFamily) (CheckButton InspGeneric)
     (CheckButton InspStep) (Label InspFound)
-    (Label InspPlacementTitle) (CheckButton InspArrange) (CheckButton InspRowsAlongX)
+    (Label InspPlacementTitle) (CheckButton InspArrange) (CheckButton InspRowsAlongX) (CheckButton InspUseZAxis)
     (Label InspColumnsLabel) (InputPanel InspColumns) (Label InspGapLabel) (InputPanel InspGap)
     (Label InspValidation) (PushButton InspBuildButton)
     (ProgressBar InspProgress) (Label InspProgressText) (Label InspResultsTitle)
@@ -181,6 +181,7 @@
     (InspPlacementTitle.Label "Placement")
     (InspArrange.Label "Auto arrange") (InspArrange.Set True)
     (InspRowsAlongX.Label "Arrange rows along X axis (horizontal)")
+    (InspUseZAxis.Label "Arrange on Z axis (X-Z plane)")
     (InspColumnsLabel.Label "Columns") (InspColumns.Columns 5)
     (InspGapLabel.Label "Gap (assembly units)") (InspGap.Columns 8)
     (InspValidation.Label "") (InspBuildButton.Label "Add to assembly")
@@ -204,7 +205,7 @@
         (Grid (Rows 0) (Cols 0 0 0 0 1) InspRecursive InspLatest InspParts InspAssemblies InspFound)
         (Grid (Rows 0) (Cols 0 0 1) InspFamily InspGeneric InspStep)
         InspPlacementTitle
-        (Grid (Rows 0) (Cols 0 0 0 0 0 0 1) InspArrange InspRowsAlongX InspColumnsLabel InspColumns InspGapLabel InspGap InspValidation)
+        (Grid (Rows 0) (Cols 0 0 0 0 0 0 0 1) InspArrange InspRowsAlongX InspUseZAxis InspColumnsLabel InspColumns InspGapLabel InspGap InspValidation)
         (Grid (Rows 0) (Cols 0 1 0) InspBuildButton InspProgress InspProgressText)
         InspResultsTitle InspTable InspSummary InspDetails
         (Grid (Rows 0) (Cols 0 1) InspClearButton InspSpacer)))))
