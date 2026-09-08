@@ -10,6 +10,8 @@ docs/API_NOTES.md
 docs/ARCHITECTURE.md
 docs/CHANGELOG.md
 docs/DEVELOPMENT.md
+docs/RELEASE_PLAN_0.3.0.md
+docs/RELEASE_PLAN_0.4.0.md
 include/app/AppContext.h
 include/app/Commands.h
 include/app/ToolboxDialog.h
@@ -30,6 +32,8 @@ include/config/AppConfig.h
 include/config/QcRules.h
 include/tools/AccuracyChecker.h
 include/tools/InspectionBuilder.h
+include/tools/InstanceBuilder.h
+include/tools/InstanceBuilderUi.h
 include/tools/PlacementEngine.h
 include/tools/WeakDimensionChecker.h
 installer/install.ps1
@@ -56,6 +60,8 @@ src/common/UiUtils.cpp
 src/tools/accuracy/AccuracyChecker.cpp
 src/tools/inspection/InspectionBuilder.cpp
 src/tools/inspection/PlacementEngine.cpp
+src/tools/instance_builder/InstanceBuilder.cpp
+src/tools/instance_builder/InstanceBuilderUi.cpp
 src/tools/weak_dimension/WeakDimensionChecker.cpp
 text/aventics_messages.txt
 text/resource/aventics_toolbox.res
