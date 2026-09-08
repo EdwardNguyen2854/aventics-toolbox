@@ -28,7 +28,7 @@ foreach ($ResourceName in $ResourceNames) {
     }
 }
 
-$ReleaseRoot = Join-Path $OutputDir "AventicsToolbox_v0.5.0"
+$ReleaseRoot = Join-Path $OutputDir "AventicsToolbox_v0.5.1"
 if (Test-Path $ReleaseRoot) { Remove-Item $ReleaseRoot -Recurse -Force }
 New-Item -ItemType Directory -Path (Join-Path $ReleaseRoot "bin") -Force | Out-Null
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
@@ -39,7 +39,7 @@ Copy-Item (Join-Path $Root "VERSION.txt") $ReleaseRoot -Force
 Copy-Item (Join-Path $Root "installer") (Join-Path $ReleaseRoot "installer") -Recurse -Force
 
 $Readme = @"
-Aventics Toolbox v0.5.0
+Aventics Toolbox v0.5.1
 
 1. Run .\installer\install.ps1
 2. Register the generated protk.dat in Creo -> Tools -> Auxiliary Applications.
@@ -50,7 +50,7 @@ The release DLL must already be unlocked by the developer before packaging.
 "@
 Set-Content (Join-Path $ReleaseRoot "README.txt") $Readme -Encoding utf8
 
-$Zip = Join-Path $OutputDir "AventicsToolbox_v0.5.0_release.zip"
+$Zip = Join-Path $OutputDir "AventicsToolbox_v0.5.1_release.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 Compress-Archive -Path "$ReleaseRoot\*" -DestinationPath $Zip
 Write-Host "Created release package: $Zip"

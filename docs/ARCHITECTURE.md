@@ -1,4 +1,4 @@
-# Aventics Toolbox v0.5.0 Architecture
+# Aventics Toolbox v0.5.1 Architecture
 
 ## Product boundary
 
@@ -15,17 +15,19 @@ Creo 9
        -> Instance Builder GUI
 ```
 
-The tools remain internal C++ modules in one DLL. v0.5.0 changes the native UI shell, not the application/DLL boundary.
+The tools remain internal C++ modules in one DLL. v0.5.1 refines the native UI shell and resource layout without changing the application/DLL boundary.
 
 ## UI shell
 
 The Control Panel is the entry GUI. Selecting a tool exits the launcher view and opens that tool's standalone native Creo dialog. Each tool dialog contains:
 
-- its own source/options/results controls,
+- its source/options/results controls,
 - shared operation status and cancellation,
 - a **Full screen** action,
-- a **Control Panel** action,
+- a **Home** action returning to the Control Panel,
 - a close action.
+
+v0.5.1 reduces repeated explanatory copy, compacts related controls into fewer rows, and gives result tables more visible space while keeping the existing native Creo component IDs and callbacks.
 
 Tool navigation is blocked while an operation is active so an in-progress dialog is not destroyed. Session state is stored in `AppContext`, therefore paths, filters, results, placement settings, and Instance Builder input survive navigation between the Control Panel and tool dialogs.
 
