@@ -7,15 +7,15 @@ Aventics Toolbox
 
 
 AVT.Command.Help
-Open Aventics Toolbox for Creo quality control and inspection utilities.
+Open Aventics Toolbox for Creo quality control and assembly utilities.
 
 
 AVT.Command.Description
 Open the tabbed Aventics Toolbox interface.
 
 
-%CEAVT.Error.Dialog
-Aventics Toolbox could not open its native Creo dialog. Check the text/resource files and application log.
+AVT.Error.Dialog
+Aventics Toolbox could not open its native Creo dialog. Check the Aventics Toolbox log for the underlying TOOLKIT error.
 
 
 %CIAVT.Info.Loaded
