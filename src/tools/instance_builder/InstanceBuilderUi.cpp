@@ -528,6 +528,7 @@ void UpdateControls(const char* dialog, bool running) {
     UiUtils::EnableCheck(kDialog, kRecursive, !running);
     UiUtils::EnableCheck(kDialog, kLatest, !running);
     UiUtils::EnableCheck(kDialog, kUnresolvedOnly, !running && hasResults);
+    UiUtils::EnableCheck(kDialog, kInspectionUseZAxis, !running);
     if (!running) RefreshDetails();
 }
 }
