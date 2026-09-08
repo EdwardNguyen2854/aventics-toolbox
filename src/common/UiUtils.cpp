@@ -87,6 +87,10 @@ void EnableInput(const char* dialog, const char* component, bool enabled) {
 }
 
 void EnableTextArea(const char* dialog, const char* component, bool enabled) {
+    ProBoolean current = PRO_B_FALSE;
+    if (ProUITextareaIsEnabled(const_cast<char*>(dialog), const_cast<char*>(component), &current) == PRO_TK_NO_ERROR &&
+        (current == PRO_B_TRUE) == enabled)
+        return;
     if (enabled) ProUITextareaEnable(const_cast<char*>(dialog), const_cast<char*>(component));
     else ProUITextareaDisable(const_cast<char*>(dialog), const_cast<char*>(component));
 }

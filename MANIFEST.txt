@@ -45,6 +45,7 @@ protk.dat.example
 src/app/AppContext.cpp
 src/app/Commands.cpp
 src/app/ToolboxDialog.cpp
+src/app/ToolboxDialogV050.cpp
 src/app/main.cpp
 src/common/FamilyTableService.cpp
 src/common/FolderPicker.cpp
@@ -65,4 +66,12 @@ src/tools/instance_builder/InstanceBuilderUi.cpp
 src/tools/weak_dimension/WeakDimensionChecker.cpp
 text/aventics_messages.txt
 text/resource/aventics_toolbox.res
+text/resource/aventics_weak.res
+text/resource/aventics_accuracy.res
+text/resource/aventics_inspection.res
+text/resource/aventics_instance_builder.res
 text/usascii/resource/aventics_toolbox.res
+text/usascii/resource/aventics_weak.res
+text/usascii/resource/aventics_accuracy.res
+text/usascii/resource/aventics_inspection.res
+text/usascii/resource/aventics_instance_builder.res

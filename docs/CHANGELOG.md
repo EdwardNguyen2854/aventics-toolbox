@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0
+
+- Replaced the five-tab toolbox workspace with a Control Panel that opens Weak Dimensions, Accuracy, Inspection, and Instance Builder in separate native Creo dialogs.
+- Added a **Full screen** action to every tool dialog plus a **Control Panel** action for returning to the launcher.
+- Kept operation cancellation and session state across tool-dialog navigation while preventing navigation during an active operation.
+- Fixed Instance Builder multiline paste stability by avoiding redundant `ProUITextareaEnable()` calls while the text area is already enabled.
+- Increased the Instance Builder request text area to 10 visible rows with a 32,767-character native maximum length for large pasted code lists.
+- Preserved deterministic row/column allocation for Instance Builder: if an exact requested instance is not found, that allocated grid position remains empty and assembly continues with the next requested position.
+- Split the native resource into the Control Panel plus four tool-specific resource files and mirrored all five resources under `text/usascii/resource`.
+- Extended release packaging validation to verify every primary/mirrored GUI resource pair before creating the package.
+- Synchronized application, CMake, resource-title, packaging, README, architecture, and version metadata to v0.5.0.
+
 ## 0.4.1
 
 - Fixed malformed native resource grids in the Accuracy model-type row and Inspection discovery row that could cause the v0.4.0 toolbox dialog to fail during `ProUIDialogCreate()`.
@@ -54,4 +66,3 @@
 - Added family-table instance placement.
 - Added STEP `.stp/.step` import and placement.
 - Added auto-arrange bounding-box grid and same-origin mode.
-- Added user-level release installer scripts.

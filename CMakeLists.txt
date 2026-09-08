@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(AventicsToolbox VERSION 0.4.1 LANGUAGES CXX)
+project(AventicsToolbox VERSION 0.5.0 LANGUAGES CXX)
 
 if(NOT WIN32)
-    message(FATAL_ERROR "Aventics Toolbox v0.4.1 targets Creo Parametric on Windows x64.")
+    message(FATAL_ERROR "Aventics Toolbox v0.5.0 targets Creo Parametric on Windows x64.")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -29,7 +29,7 @@ endif()
 add_library(AventicsToolbox SHARED
     src/app/main.cpp
     src/app/Commands.cpp
-    src/app/ToolboxDialog.cpp
+    src/app/ToolboxDialogV050.cpp
     src/app/AppContext.cpp
 
     src/common/ModelUtils.cpp
