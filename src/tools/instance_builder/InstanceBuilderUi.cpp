@@ -14,9 +14,11 @@
 #include <ProUIInputpanel.h>
 #include <ProUIPushbutton.h>
 #include <ProUITable.h>
+#include <ProUITab.h>
 #include <ProUITextarea.h>
 #include <ProUICheckbutton.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <sstream>
@@ -26,6 +28,7 @@
 
 namespace {
 constexpr char kDialog[] = "aventics_toolbox";
+constexpr char kTabs[] = "ToolTabs";
 constexpr char kFolder[] = "InstFolder";
 constexpr char kRecursive[] = "InstRecursive";
 constexpr char kLatest[] = "InstLatest";
@@ -33,6 +36,7 @@ constexpr char kFound[] = "InstFound";
 constexpr char kCodes[] = "InstCodes";
 constexpr char kColumns[] = "InstColumns";
 constexpr char kGap[] = "InstGap";
+constexpr char kUnresolvedOnly[] = "InstUnresolvedOnly";
 constexpr char kValidation[] = "InstValidation";
 constexpr char kProgress[] = "InstProgress";
 constexpr char kProgressText[] = "InstProgressText";
@@ -41,8 +45,11 @@ constexpr char kTable[] = "InstTable";
 constexpr char kSummary[] = "InstSummary";
 constexpr char kDetails[] = "InstDetails";
 constexpr char kFooterStatus[] = "FooterStatus";
+constexpr char kInspectionUseZAxis[] = "InspUseZAxis";
+constexpr char kInspectionValidation[] = "InspValidation";
 
 std::unique_ptr<InstanceBuilder> g_builder;
+std::vector<std::size_t> g_visibleResults;
 
 void SetGlobalStatus(const std::wstring& text) {
     UiUtils::SetLabel(kDialog, kFooterStatus, text);
@@ -94,6 +101,12 @@ FolderScanOptions SourceOptions(const InstanceBuilderOptions& options) {
     return scan;
 }
 
+bool IsUnresolved(InstanceBuildStatus status) {
+    return status == InstanceBuildStatus::NotFound ||
+           status == InstanceBuildStatus::Failed ||
+           status == InstanceBuildStatus::Skipped;
+}
+
 bool HasBuildResults() {
     for (const auto& result : AppContext::Instance().instanceResults) {
         if (result.status != InstanceBuildStatus::Planned) return true;
@@ -101,25 +114,51 @@ bool HasBuildResults() {
     return false;
 }
 
+bool HasActiveAssembly() {
+    ProMdl current = nullptr;
+    return ModelUtils::CurrentModel(&current) == PRO_TK_NO_ERROR && ModelUtils::IsAssembly(current);
+}
+
+bool CanPlan() {
+    InstanceBuilderOptions options;
+    std::vector<InstanceRequest> requests;
+    std::wstring error;
+    return ReadInputs(options, requests, error) && !requests.empty();
+}
+
+bool CanBuild() {
+    if (!HasActiveAssembly() || UiUtils::GetInput(kDialog, kFolder).empty()) return false;
+    return CanPlan();
+}
+
 void RefreshActiveAssembly() {
     ProMdl current = nullptr;
     if (ModelUtils::CurrentModel(&current) == PRO_TK_NO_ERROR && ModelUtils::IsAssembly(current)) {
         UiUtils::SetLabel(kDialog, kActiveAsm,
-            L"Active: " + ModelUtils::ModelName(current) + L" | Instances will be added unconstrained; no automatic save.");
+            L"Active: " + ModelUtils::ModelName(current) + L" | Adds unconstrained components; no automatic save.");
     } else {
         UiUtils::SetLabel(kDialog, kActiveAsm,
             L"No active assembly. Open or create an assembly before building instances.");
     }
 }
 
-void RefreshDetails() {
+int SelectedResultIndex() {
     const int selected = UiUtils::SelectedRowIndex(kDialog, kTable, 'b');
+    if (selected < 0 || static_cast<std::size_t>(selected) >= g_visibleResults.size()) return -1;
+    return static_cast<int>(g_visibleResults[static_cast<std::size_t>(selected)]);
+}
+
+void RefreshDetails() {
+    const int selected = SelectedResultIndex();
     std::wstring detail = L"Select a row to see source and build details.";
     const auto& results = AppContext::Instance().instanceResults;
     if (selected >= 0 && static_cast<std::size_t>(selected) < results.size()) {
         const auto& result = results[static_cast<std::size_t>(selected)];
         detail = result.requestedCode + L" | row " + std::to_wstring(result.row) + L", column " +
                  std::to_wstring(result.column);
+        if (!result.genericName.empty()) detail += L" | generic " + result.genericName;
+        if (!result.addedModelName.empty()) detail += L" | added " + result.addedModelName;
+        if (result.componentFeatureId >= 0) detail += L" | feature " + std::to_wstring(result.componentFeatureId);
         if (!result.sourcePath.empty()) detail += L" | " + result.sourcePath;
         if (!result.details.empty()) detail += L" | " + result.details;
     }
@@ -127,36 +166,48 @@ void RefreshDetails() {
 }
 
 void RefreshTable() {
-    const auto& results = AppContext::Instance().instanceResults;
+    auto& context = AppContext::Instance();
+    const auto& results = context.instanceResults;
     const int oldSelected = UiUtils::SelectedRowIndex(kDialog, kTable, 'b');
+    std::size_t oldResult = 0;
+    const bool hadSelection = oldSelected >= 0 && static_cast<std::size_t>(oldSelected) < g_visibleResults.size();
+    if (hadSelection) oldResult = g_visibleResults[static_cast<std::size_t>(oldSelected)];
+
+    g_visibleResults.clear();
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        if (!context.instanceUnresolvedOnly || IsUnresolved(results[i].status)) g_visibleResults.push_back(i);
+    }
+
     std::vector<std::string> rows;
-    for (std::size_t i = 0; i < results.size(); ++i) rows.push_back("b" + std::to_string(i));
+    for (std::size_t i = 0; i < g_visibleResults.size(); ++i) rows.push_back("b" + std::to_string(i));
     UiUtils::SetRows(kDialog, kTable, rows);
-    if (oldSelected >= 0 && static_cast<std::size_t>(oldSelected) < results.size())
-        UiUtils::SelectRow(kDialog, kTable, "b" + std::to_string(oldSelected));
+
+    if (hadSelection) {
+        const auto found = std::find(g_visibleResults.begin(), g_visibleResults.end(), oldResult);
+        if (found != g_visibleResults.end())
+            UiUtils::SelectRow(kDialog, kTable, "b" + std::to_string(std::distance(g_visibleResults.begin(), found)));
+    }
 
     if (rows.empty()) {
-        UiUtils::SetCell(kDialog, kTable, "empty", "Code", L"No plan");
-        for (const char* column : {"Row", "Column", "Generic", "AddedModel", "Status", "FeatureId", "Details"})
+        UiUtils::SetCell(kDialog, kTable, "empty", "Code",
+            results.empty() ? L"No plan" : L"No unresolved results");
+        for (const char* column : {"Row", "Column", "Generic", "AddedModel", "Status"})
             UiUtils::SetCell(kDialog, kTable, "empty", column, L"-");
-        UiUtils::SetLabel(kDialog, kSummary, L"No plan");
-        RefreshDetails();
-        return;
+    } else {
+        for (std::size_t visible = 0; visible < g_visibleResults.size(); ++visible) {
+            const auto& result = results[g_visibleResults[visible]];
+            const std::string row = "b" + std::to_string(visible);
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "Code", result.requestedCode);
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "Row", std::to_wstring(result.row));
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "Column", std::to_wstring(result.column));
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "Generic", result.genericName.empty() ? L"-" : result.genericName);
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "AddedModel", result.addedModelName.empty() ? L"-" : result.addedModelName);
+            UiUtils::SetCell(kDialog, kTable, row.c_str(), "Status", InstanceBuilder::StatusName(result.status));
+        }
     }
 
     int planned = 0, added = 0, notFound = 0, failed = 0, skipped = 0;
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        const auto& result = results[i];
-        const std::string row = "b" + std::to_string(i);
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Code", result.requestedCode);
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Row", std::to_wstring(result.row));
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Column", std::to_wstring(result.column));
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Generic", result.genericName.empty() ? L"-" : result.genericName);
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "AddedModel", result.addedModelName.empty() ? L"-" : result.addedModelName);
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Status", InstanceBuilder::StatusName(result.status));
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "FeatureId",
-                         result.componentFeatureId >= 0 ? std::to_wstring(result.componentFeatureId) : L"-");
-        UiUtils::SetCell(kDialog, kTable, row.c_str(), "Details", result.details.empty() ? L"-" : result.details);
+    for (const auto& result : results) {
         switch (result.status) {
         case InstanceBuildStatus::Planned: ++planned; break;
         case InstanceBuildStatus::Added: ++added; break;
@@ -167,14 +218,19 @@ void RefreshTable() {
     }
 
     std::wstringstream summary;
-    summary << results.size() << L" requested";
-    if (planned == static_cast<int>(results.size())) {
-        int maxRow = 0;
-        for (const auto& result : results) maxRow = std::max(maxRow, result.row);
-        summary << L" | " << maxRow << L" rows planned";
+    if (results.empty()) {
+        summary << L"No plan";
     } else {
-        summary << L" | " << added << L" added | " << notFound << L" not found | "
-                << failed << L" failed | " << skipped << L" skipped";
+        summary << results.size() << L" requested";
+        if (planned == static_cast<int>(results.size())) {
+            int maxRow = 0;
+            for (const auto& result : results) maxRow = std::max(maxRow, result.row);
+            summary << L" | " << maxRow << L" rows planned | source search not started";
+        } else {
+            summary << L" | " << added << L" added | " << notFound << L" not found | "
+                    << failed << L" failed | " << skipped << L" skipped";
+        }
+        if (g_visibleResults.size() != results.size()) summary << L" | " << g_visibleResults.size() << L" shown";
     }
     UiUtils::SetLabel(kDialog, kSummary, summary.str());
     RefreshDetails();
@@ -187,6 +243,7 @@ void PlanFromInputs(bool announce) {
     if (!ReadInputs(options, requests, error)) {
         UiUtils::SetLabel(kDialog, kValidation, error);
         if (announce) SetGlobalStatus(error);
+        InstanceBuilderUi::UpdateControls(kDialog, false);
         return;
     }
 
@@ -204,7 +261,8 @@ void PlanFromInputs(bool announce) {
     }
     UiUtils::SetLabel(kDialog, kValidation, L"");
     RefreshTable();
-    if (announce) SetGlobalStatus(L"Instance positions planned. Review row/column allocation before building.");
+    InstanceBuilderUi::UpdateControls(kDialog, false);
+    if (announce) SetGlobalStatus(L"Instance positions planned. Review allocation before building.");
 }
 
 void OnBrowse(char*, char*, ProAppData) {
@@ -217,6 +275,8 @@ void OnBrowse(char*, char*, ProAppData) {
     context.instanceFolder = picked;
     UiUtils::SetInput(kDialog, kFolder, picked);
     UiUtils::SetLabel(kDialog, kFound, L"Folder selected. Build will search Creo parts and assemblies for exact instances.");
+    UiUtils::SetLabel(kDialog, kValidation, L"Source changed. Plan again if you want to review allocation first.");
+    InstanceBuilderUi::UpdateControls(kDialog, false);
 }
 
 void OnPlan(char*, char*, ProAppData) {
@@ -231,6 +291,7 @@ void OnBuild(char*, char*, ProAppData) {
     if (ModelUtils::CurrentModel(&current) != PRO_TK_NO_ERROR || !ModelUtils::IsAssembly(current)) {
         RefreshActiveAssembly();
         SetGlobalStatus(L"Open or create an assembly before building instances.");
+        InstanceBuilderUi::UpdateControls(kDialog, false);
         return;
     }
 
@@ -240,6 +301,7 @@ void OnBuild(char*, char*, ProAppData) {
     if (!ReadInputs(options, requests, error)) {
         UiUtils::SetLabel(kDialog, kValidation, error);
         SetGlobalStatus(error);
+        InstanceBuilderUi::UpdateControls(kDialog, false);
         return;
     }
 
@@ -249,6 +311,7 @@ void OnBuild(char*, char*, ProAppData) {
         const std::wstring message = L"Choose a source folder before building instances.";
         UiUtils::SetLabel(kDialog, kValidation, message);
         SetGlobalStatus(message);
+        InstanceBuilderUi::UpdateControls(kDialog, false);
         return;
     }
 
@@ -262,7 +325,6 @@ void OnBuild(char*, char*, ProAppData) {
         return;
     }
 
-    // Refresh the logical grid immediately; the build will preserve these cells.
     context.instanceResults.clear();
     for (const auto& request : requests) {
         InstanceBuildResult result;
@@ -284,24 +346,25 @@ void OnBuild(char*, char*, ProAppData) {
         [](std::size_t index) {
             auto& state = AppContext::Instance();
             const auto& source = state.instancePending[index];
-            const std::wstring message = L"Instance Builder | Searching: " + source.displayName;
-            UiUtils::SetLabel(kDialog, kProgressText, message);
-            SetGlobalStatus(message);
+            UiUtils::SetLabel(kDialog, kProgressText, L"Searching: " + source.displayName);
+            SetGlobalStatus(L"Instance Builder | Searching: " + source.displayName);
             if (g_builder) g_builder->ProcessSource(source);
         },
         [](std::size_t done, std::size_t total) {
             UiUtils::SetProgress(kDialog, kProgress, static_cast<int>(done), static_cast<int>(total));
             const std::wstring resolved = g_builder ? std::to_wstring(g_builder->ResolvedCount()) : L"0";
-            const std::wstring message = L"Instance Builder | " + std::to_wstring(done) + L" / " +
-                std::to_wstring(total) + L" source models | " + resolved + L" requested entries resolved";
-            UiUtils::SetLabel(kDialog, kProgressText, message);
-            SetGlobalStatus(message);
+            const std::wstring requested = std::to_wstring(AppContext::Instance().instanceResults.size());
+            UiUtils::SetLabel(kDialog, kProgressText,
+                std::to_wstring(done) + L" / " + std::to_wstring(total) + L" sources | " +
+                resolved + L" / " + requested + L" codes resolved");
+            SetGlobalStatus(L"Instance Builder | " + std::to_wstring(done) + L" / " +
+                std::to_wstring(total) + L" source models | " + resolved + L" / " + requested + L" codes resolved");
         },
         [](bool cancelled) {
             auto& state = AppContext::Instance();
             if (cancelled) {
                 const std::wstring message = L"Instance Builder cancelled before assembly. No new instance components were added.";
-                UiUtils::SetLabel(kDialog, kProgressText, message);
+                UiUtils::SetLabel(kDialog, kProgressText, L"Cancelled before assembly; no components added.");
                 state.instancePending.clear();
                 g_builder.reset();
                 SetGlobalStatus(message);
@@ -313,8 +376,8 @@ void OnBuild(char*, char*, ProAppData) {
             if (g_builder) g_builder->Finalize(state.instanceResults);
             state.instancePending.clear();
             g_builder.reset();
-            const std::wstring message = L"Instance Builder completed. Review results and export the CSV report if needed.";
-            UiUtils::SetLabel(kDialog, kProgressText, message);
+            const std::wstring message = L"Instance Builder completed. Review unresolved requests or export the CSV report.";
+            UiUtils::SetLabel(kDialog, kProgressText, L"Completed. Review results below.");
             SetGlobalStatus(message);
             InstanceBuilderUi::Refresh(kDialog);
             InstanceBuilderUi::UpdateControls(kDialog, false);
@@ -324,7 +387,7 @@ void OnBuild(char*, char*, ProAppData) {
         context.instancePending.clear();
         g_builder.reset();
         const std::wstring message = L"Could not start Instance Builder: " + ModelUtils::ErrorName(startError);
-        UiUtils::SetLabel(kDialog, kProgressText, message);
+        UiUtils::SetLabel(kDialog, kProgressText, L"Could not start.");
         SetGlobalStatus(message);
         return;
     }
@@ -353,11 +416,33 @@ void OnClear(char*, char*, ProAppData) {
 
 void OnSetupChanged(char*, char*, ProAppData) {
     if (OperationRunner::Instance().IsRunning()) return;
-    UiUtils::SetLabel(kDialog, kValidation, L"Inputs changed. Plan positions again before building.");
+    UiUtils::SetLabel(kDialog, kValidation,
+        AppContext::Instance().instanceResults.empty()
+            ? L"Inputs changed. Plan positions when ready."
+            : L"Inputs changed. Existing plan/results belong to the previous inputs; plan again to refresh allocation.");
+    InstanceBuilderUi::UpdateControls(kDialog, false);
+}
+
+void OnFilter(char*, char*, ProAppData) {
+    AppContext::Instance().instanceUnresolvedOnly = UiUtils::GetCheck(kDialog, kUnresolvedOnly, false);
+    RefreshTable();
 }
 
 void OnSelected(char*, char*, ProAppData) {
     RefreshDetails();
+}
+
+void OnOverviewInstance(char*, char*, ProAppData) {
+    char* values[] = { const_cast<char*>("InstanceBuilderLayout") };
+    ProUITabSelectednamesSet(const_cast<char*>(kDialog), const_cast<char*>(kTabs), 1, values);
+}
+
+void OnInspectionZAxisChanged(char*, char*, ProAppData) {
+    if (OperationRunner::Instance().IsRunning()) return;
+    auto& context = AppContext::Instance();
+    context.inspectionUseZAxis = UiUtils::GetCheck(kDialog, kInspectionUseZAxis, false);
+    UiUtils::SetLabel(kDialog, kInspectionValidation,
+        context.inspectionUseZAxis ? L"Placement plane: X-Z." : L"Placement plane: X-Y.");
 }
 
 void RegisterButton(const char* name, ProUIAction action) {
@@ -368,6 +453,7 @@ void RegisterButton(const char* name, ProUIAction action) {
 namespace InstanceBuilderUi {
 void SetupCallbacks(const char* dialog) {
     (void)dialog;
+    RegisterButton("OverviewInstButton", OnOverviewInstance);
     RegisterButton("InstBrowseButton", OnBrowse);
     RegisterButton("InstPlanButton", OnPlan);
     RegisterButton("InstBuildButton", OnBuild);
@@ -375,6 +461,10 @@ void SetupCallbacks(const char* dialog) {
     RegisterButton("InstClearButton", OnClear);
     ProUICheckbuttonActivateActionSet(const_cast<char*>(kDialog), const_cast<char*>(kRecursive), OnSetupChanged, nullptr);
     ProUICheckbuttonActivateActionSet(const_cast<char*>(kDialog), const_cast<char*>(kLatest), OnSetupChanged, nullptr);
+    ProUICheckbuttonActivateActionSet(const_cast<char*>(kDialog), const_cast<char*>(kUnresolvedOnly), OnFilter, nullptr);
+    // ToolboxDialog registers the generic Inspection setup callback first. Override only
+    // the previously orphaned X-Z control so its value is retained as a real preference.
+    ProUICheckbuttonActivateActionSet(const_cast<char*>(kDialog), const_cast<char*>(kInspectionUseZAxis), OnInspectionZAxisChanged, nullptr);
     ProUIInputpanelInputActionSet(const_cast<char*>(kDialog), const_cast<char*>(kFolder), OnSetupChanged, nullptr);
     ProUIInputpanelInputActionSet(const_cast<char*>(kDialog), const_cast<char*>(kColumns), OnSetupChanged, nullptr);
     ProUIInputpanelInputActionSet(const_cast<char*>(kDialog), const_cast<char*>(kGap), OnSetupChanged, nullptr);
@@ -390,6 +480,8 @@ void SaveState(const char* dialog) {
     context.instanceCodes = UiUtils::GetTextArea(kDialog, kCodes);
     context.instanceRecursive = UiUtils::GetCheck(kDialog, kRecursive, false);
     context.instanceLatest = UiUtils::GetCheck(kDialog, kLatest, true);
+    context.instanceUnresolvedOnly = UiUtils::GetCheck(kDialog, kUnresolvedOnly, false);
+    context.inspectionUseZAxis = UiUtils::GetCheck(kDialog, kInspectionUseZAxis, false);
     int columns = context.instanceColumns;
     double gap = context.instanceGap;
     if (ParsePositiveInt(UiUtils::GetInput(kDialog, kColumns), columns)) context.instanceColumns = columns;
@@ -403,6 +495,8 @@ void RestoreState(const char* dialog) {
     UiUtils::SetTextArea(kDialog, kCodes, context.instanceCodes);
     UiUtils::SetCheck(kDialog, kRecursive, context.instanceRecursive);
     UiUtils::SetCheck(kDialog, kLatest, context.instanceLatest);
+    UiUtils::SetCheck(kDialog, kUnresolvedOnly, context.instanceUnresolvedOnly);
+    UiUtils::SetCheck(kDialog, kInspectionUseZAxis, context.inspectionUseZAxis);
     UiUtils::SetInput(kDialog, kColumns, std::to_wstring(context.instanceColumns));
     std::wstringstream gap;
     gap.precision(12);
@@ -421,10 +515,11 @@ void Refresh(const char* dialog) {
 
 void UpdateControls(const char* dialog, bool running) {
     (void)dialog;
+    const bool hasResults = !AppContext::Instance().instanceResults.empty();
     UiUtils::EnableButton(kDialog, "InstBrowseButton", !running);
-    UiUtils::EnableButton(kDialog, "InstPlanButton", !running);
-    UiUtils::EnableButton(kDialog, "InstBuildButton", !running);
-    UiUtils::EnableButton(kDialog, "InstClearButton", !running);
+    UiUtils::EnableButton(kDialog, "InstPlanButton", !running && CanPlan());
+    UiUtils::EnableButton(kDialog, "InstBuildButton", !running && CanBuild());
+    UiUtils::EnableButton(kDialog, "InstClearButton", !running && hasResults);
     UiUtils::EnableButton(kDialog, "InstExportButton", !running && HasBuildResults());
     UiUtils::EnableInput(kDialog, kFolder, !running);
     UiUtils::EnableTextArea(kDialog, kCodes, !running);
@@ -432,6 +527,7 @@ void UpdateControls(const char* dialog, bool running) {
     UiUtils::EnableInput(kDialog, kGap, !running);
     UiUtils::EnableCheck(kDialog, kRecursive, !running);
     UiUtils::EnableCheck(kDialog, kLatest, !running);
+    UiUtils::EnableCheck(kDialog, kUnresolvedOnly, !running && hasResults);
     if (!running) RefreshDetails();
 }
 }
