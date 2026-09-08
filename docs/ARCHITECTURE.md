@@ -1,4 +1,4 @@
-# Aventics Toolbox v0.3.0 Architecture
+# Aventics Toolbox v0.4.0 Architecture
 
 ## Product boundary
 
@@ -21,18 +21,29 @@ Top-level native Creo tabs:
 - Weak Dimensions
 - Accuracy
 - Inspection
+- Instance Builder
 
-The tabs keep their in-session state when the user switches between them.
+The tabs keep their in-session state when the user switches between them. Overview distinguishes read-only QC from the two assembly-modifying tools and links all four functional tabs directly.
 
-The v0.3.0 interaction model is consistent across tools:
+The common functional-tab hierarchy is:
 
 ```text
-choose source -> configure options -> run -> filter/review results -> open model or feature
+context/target -> source -> options -> primary action -> results -> selected details/actions
 ```
 
-Weak Dimensions and Accuracy each expose one primary run action and switch between Creo selection and folder input. Their result tables support text search, an Issues-only view, selected-row details and contextual model actions. Inspection groups its active target, source filters and placement settings, with strict validation for columns and gap. Auto arrange supports both the original Y-axis row progression and an X-axis horizontal row progression.
+Weak Dimensions and Accuracy each expose one primary run action and switch between Creo selection and folder input. Their result tables support text search, an Issues-only view, selected-row details, and contextual model actions. v0.4.0 removes long free-text diagnostic columns from the visible table so identity/status remain scannable at smaller widths.
 
-A shared footer reports the owning operation and cancellation state from every tab. While an operation runs, callbacks guard and disable source, run and clear controls so the frozen queue cannot be replaced. Tab navigation and result review remain available.
+Inspection groups its active target, source discovery, source types, family-table choices, and placement settings. Auto arrange supports row progression, X-Y or X-Z placement planes, columns, and gap; disabling Auto arrange uses same-origin placement. The X-Z choice is retained for the current Creo session and read by `InspectionBuilder` when a run starts.
+
+Instance Builder is intentionally modular in `InstanceBuilderUi.cpp` and presents three stages:
+
+```text
+Input -> Plan -> Build and review
+```
+
+Its review table keeps code, allocated cell, resolved generic/model, and status visible while full source/feature/diagnostic data remains in selected-row details or CSV. An Unresolved-only view filters Not Found, Failed, and Skipped rows without changing underlying result identity.
+
+A shared footer reports the owning operation and cancellation state from every tab. While an operation runs, callbacks guard source/run/clear changes so the frozen queue cannot be replaced. Tab navigation and result review remain available.
 
 ## Shared services
 
@@ -101,6 +112,31 @@ Placement modes:
 
 - Auto arrange: bounding-box based grid
 - Same origin: identity transform
+- Row direction: default or completed rows advance along X
+- Plane: X-Y or X-Z
+
+## Instance Builder
+
+Instance Builder accepts requested codes, allocates deterministic row/column cells, searches exact standalone/family-instance names, and assembles resolved models unconstrained to the active assembly.
+
+Search and assembly are intentionally separated:
+
+```text
+parse/allocate
+ -> discover source models
+ -> resolve requested codes through OperationRunner
+ -> if search completes, assemble resolved requests into planned cells
+```
+
+This makes cancellation during search safe: no new Instance Builder components are added until source resolution finishes. Duplicate requested codes keep independent planned cells and missing codes leave holes instead of shifting later components.
+
+Final results can be exported as UTF-8 CSV.
+
+## UI state
+
+`AppContext` retains session-level UI state including source paths, source modes, filters, Inspection placement options, Instance Builder codes/allocation options, the Inspection X-Z plane choice, and the Instance Builder Unresolved-only review choice.
+
+The two `.res` files are intentionally mirrored. `package-release.ps1` verifies SHA-256 parity before creating the release package.
 
 ## Safety rules
 
@@ -109,5 +145,6 @@ Placement modes:
 - No automatic weak-dimension repair.
 - No accuracy correction.
 - Folder QC never erases models that existed in the session before that model's scan.
-- Inspection Builder does not erase models used by components it has added.
-- Cancel stops between models; it does not roll back already-added inspection components.
+- Inspection and Instance Builder do not erase models used by components they add.
+- Inspection Cancel stops between models; it does not roll back already-added components.
+- Instance Builder Cancel during source search adds no components because assembly is deferred until resolution completes.

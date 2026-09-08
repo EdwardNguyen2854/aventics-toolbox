@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0
+
+- Reworked the native Creo layout around clearer Source, Placement, Results, and staged workflow sections.
+- Added Instance Builder to Overview so all five tools are directly discoverable from the landing tab.
+- Reduced wide result tables by moving long diagnostic text, paths, and feature details into the selected-result area.
+- Split Inspection discovery, model-type, family-table, placement-direction, plane, and grid settings into lower-density rows.
+- Retained the Inspection X-Z placement-plane choice across dialog reopen and kept it connected to the existing placement engine behavior.
+- Redesigned Instance Builder as an explicit Input -> Plan -> Build and review workflow.
+- Added Instance Builder input-aware action enablement and clearer stale-plan guidance when inputs change.
+- Added an Unresolved-only Instance Builder result filter while preserving stable row-to-result mapping.
+- Shortened Instance Builder local progress text while keeping the global footer authoritative for operation ownership.
+- Renamed Instance Builder Clear to Clear results and kept CSV export as a secondary result action.
+- Added packaging validation that refuses to ship when the two mirrored native resource files differ.
+- Synchronized v0.4.0 version metadata, resource title, release package names, documentation, and five-tool architecture wording.
+- Includes the previously merged Instance Builder baseline: code-list parsing, deterministic row/column allocation, exact standalone/family-instance resolution, unconstrained assembly placement, missing-code cell preservation, cancellation-before-assembly safety, and CSV result export.
+
 ## 0.3.0
 
 - Redesigned all native tabs with consistent headings, spacing, action placement and resize behavior.

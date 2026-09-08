@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(AventicsToolbox VERSION 0.3.0 LANGUAGES CXX)
+project(AventicsToolbox VERSION 0.4.0 LANGUAGES CXX)
 
 if(NOT WIN32)
-    message(FATAL_ERROR "Aventics Toolbox v0.3.0 targets Creo Parametric on Windows x64.")
+    message(FATAL_ERROR "Aventics Toolbox v0.4.0 targets Creo Parametric on Windows x64.")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
