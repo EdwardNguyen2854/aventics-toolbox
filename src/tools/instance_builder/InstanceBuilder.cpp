@@ -177,7 +177,7 @@ void InstanceBuilder::ProcessSource(ModelDescriptor descriptor) {
     const SessionSnapshot before = SessionSnapshot::Capture();
     const ProError loadErr = ModelLoader::Load(descriptor, before);
     if (loadErr != PRO_TK_NO_ERROR || !descriptor.model) {
-        Logger::Warning(L"Instance Builder could not load " + descriptor.displayName + L": " + ModelUtils::ErrorName(loadErr));
+        Logger::Warn(L"Instance Builder could not load " + descriptor.displayName + L": " + ModelUtils::ErrorName(loadErr));
         return;
     }
 
@@ -195,7 +195,7 @@ void InstanceBuilder::ProcessSource(ModelDescriptor descriptor) {
     std::vector<FamilyInstanceInfo> matches;
     const ProError familyErr = FamilyTableService::RetrieveMatchingInstances(descriptor.model, unresolved, matches);
     if (familyErr != PRO_TK_NO_ERROR && familyErr != PRO_TK_E_NOT_FOUND) {
-        Logger::Warning(L"Instance Builder family-table scan warning for " + genericName + L": " + ModelUtils::ErrorName(familyErr));
+        Logger::Warn(L"Instance Builder family-table scan warning for " + genericName + L": " + ModelUtils::ErrorName(familyErr));
         return;
     }
 
