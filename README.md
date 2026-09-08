@@ -1,8 +1,8 @@
-# Aventics Toolbox v0.5.0
+# Aventics Toolbox v0.5.1
 
 Native Creo Parametric 9 Pro/TOOLKIT engineering toolbox for Windows x64.
 
-v0.5.0 replaces the previous five-tab workspace with a **Control Panel**. Each functional tool opens in its own native Creo GUI, and every tool GUI includes **Full screen**, **Control Panel**, cancel-operation, and close actions.
+v0.5.1 refines the v0.5.0 Control Panel architecture with tighter native layouts, shorter labels, larger result areas, and compact utility actions: **Cancel**, **Full screen**, **Home**, and **Close**.
 
 ## Included tools
 
@@ -15,7 +15,7 @@ The Control Panel is the main Aventics Toolbox GUI. From it you can open:
 - Inspection,
 - Instance Builder.
 
-It also keeps **Run all QC on Creo selection** for running Weak Dimensions and Accuracy from one model selection. Results remain in session and can be reviewed by opening either QC tool.
+It also keeps **Run all checks** for running Weak Dimensions and Accuracy from one Creo model selection. Results remain in session and can be reviewed by opening either QC tool.
 
 ### Weak Dimensions
 
@@ -83,7 +83,7 @@ Input separators:
 - semicolon,
 - tab.
 
-v0.5.0 fixes large multiline paste handling in the requested-code field. The native text area now has 10 visible rows and a 32,767-character maximum length, and its enabled state is not redundantly reset on each text-input callback.
+v0.5.0 fixes large multiline paste handling in the requested-code field. The native text area has 10 visible rows and a 32,767-character maximum length, and its enabled state is not redundantly reset on each text-input callback.
 
 Instance allocation is fixed before source search. When a requested instance is not found, its planned grid position stays empty and the assembler continues with the next request at that request's own planned row/column. Later components therefore do not shift into the missing position.
 
@@ -97,7 +97,7 @@ Other behavior:
 - does not save automatically,
 - exports the final report as UTF-8 CSV.
 
-## v0.5.0 GUI architecture
+## v0.5.1 GUI architecture
 
 ```text
 Creo 9
@@ -114,7 +114,7 @@ The project is still one Pro/TOOLKIT DLL. Tool GUIs are separate native resource
 
 Tool state is retained through `AppContext` while navigating between the Control Panel and tool dialogs. Navigation is blocked while an operation is running so the active operation's UI is not destroyed.
 
-The Full screen action expands the active tool dialog using native Creo TOOLKIT dialog-sizing APIs. The user can resize the dialog afterward to leave full-screen sizing.
+The Full screen action expands the active tool dialog using native Creo TOOLKIT dialog-sizing APIs. **Home** returns to the Control Panel. The user can resize the dialog afterward to leave full-screen sizing.
 
 ## Target environment used for this project
 
@@ -171,7 +171,7 @@ After a successful build:
 Expected development DLL for the documented release tree:
 
 ```text
-C:\local\dev\AventicsToolbox_v0.5.0\dist\x86e_win64\obj\aventics_toolbox.dll
+C:\local\dev\AventicsToolbox_v0.5.1\dist\x86e_win64\obj\aventics_toolbox.dll
 ```
 
 Register the generated `protk.dat` in:
@@ -184,7 +184,7 @@ The command is `AVT.OpenToolbox` and can be added through Creo's **TOOLKIT Comma
 
 ## Native resource paths
 
-The v0.5.0 GUI resources are:
+The v0.5.1 GUI resources are:
 
 ```text
 text\resource\aventics_toolbox.res
@@ -292,8 +292,8 @@ After final build + unlock:
 This produces:
 
 ```text
-release\AventicsToolbox_v0.5.0\
-release\AventicsToolbox_v0.5.0_release.zip
+release\AventicsToolbox_v0.5.1\
+release\AventicsToolbox_v0.5.1_release.zip
 ```
 
 The package contains the DLL, resources, version information, and installer scripts.

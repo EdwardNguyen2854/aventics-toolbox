@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+
+- Refined the Control Panel and all four tool dialogs with tighter native Creo grid layouts and less vertical whitespace.
+- Shortened headings, helper text, filter labels, and action labels to keep the tools focused on inputs and results.
+- Increased visible result-table rows in Weak Dimensions, Accuracy, Inspection, and Instance Builder.
+- Standardized tool utility actions to **Cancel**, **Full screen**, **Home**, and **Close** while preserving the existing Control Panel navigation behavior.
+- Kept resource labels ASCII-only for reliable rendering through the mirrored `text/usascii/resource` path instead of introducing font-dependent icon glyphs.
+- Synchronized CMake, application version macros, resource titles, release packaging, README, architecture notes, and version metadata to v0.5.1.
+
 ## 0.5.0
 
 - Replaced the five-tab toolbox workspace with a Control Panel that opens Weak Dimensions, Accuracy, Inspection, and Instance Builder in separate native Creo dialogs.
