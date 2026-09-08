@@ -1,8 +1,8 @@
-# Aventics Toolbox v0.5.1
+# Aventics Toolbox v0.5.2
 
 Native Creo Parametric 9 Pro/TOOLKIT engineering toolbox for Windows x64.
 
-v0.5.1 refines the v0.5.0 Control Panel architecture with tighter native layouts, shorter labels, larger result areas, and compact utility actions: **Cancel**, **Full screen**, **Home**, and **Close**.
+v0.5.2 keeps the Control Panel + standalone native tool-window architecture and focuses on UI hierarchy and workflow clarity: navigation/window actions are in tool headers, footers are status-focused, result summaries sit with Results controls, QC source modes are clearer, Inspection uses a Source/Placement workspace, and Instance Builder presents an explicit staged workflow.
 
 ## Included tools
 
@@ -12,25 +12,27 @@ The Control Panel is the main Aventics Toolbox GUI. From it you can open:
 
 - Weak Dimensions,
 - Accuracy,
-- Inspection,
+- Inspection Builder,
 - Instance Builder.
 
-It also keeps **Run all checks** for running Weak Dimensions and Accuracy from one Creo model selection. Results remain in session and can be reviewed by opening either QC tool.
+It also provides **Run QC on selection** for running Weak Dimensions and Accuracy from one Creo model selection. Results remain in session and can be reviewed by opening either QC tool.
+
+The Control Panel shows the active Creo model. If the active model is an assembly, the assembly-tool context is shown as ready; otherwise the UI tells the user to open an assembly. Inspection Builder and Instance Builder never save automatically.
 
 ### Weak Dimensions
 
 Sources:
 
-- Creo selection: parts only,
+- selected Creo parts,
 - folder: `.prt` / `.prt.N` files.
 
-Folder options include subfolders and latest-version-only filtering. The checker is read-only: it tests temporary section copies and does not strengthen dimensions in the original model.
+The **Use selected parts** option switches between Creo selection and folder mode. Folder options include subfolders and latest-version-only filtering. The checker is read-only: it tests temporary section copies and does not strengthen dimensions in the original model.
 
 ### Accuracy
 
 Sources:
 
-- Creo selection,
+- selected Creo models,
 - folder.
 
 Supported models:
@@ -47,7 +49,7 @@ Accuracy Value = 0.001
 
 The checker reads model accuracy only and does not modify or save the model.
 
-### Inspection Assembly Builder
+### Inspection Builder
 
 Folder sources:
 
@@ -55,6 +57,8 @@ Folder sources:
 - Creo assemblies (`.asm`, `.asm.N`),
 - family-table instances,
 - STEP (`.stp`, `.step`).
+
+The setup area is split into **Source** and **Placement** groups so discovery/model filters are visually separated from arrangement/grid settings.
 
 Behavior:
 
@@ -72,9 +76,12 @@ Instance Builder accepts requested instance/code numbers and resolves exact stan
 
 Workflow:
 
-1. **Input** — choose the search folder and paste requested codes.
-2. **Plan** — choose columns/gap and preview deterministic row/column allocation.
-3. **Build and review** — search source models, add resolved models unconstrained to the active assembly, review unresolved codes, and optionally export CSV.
+1. **Source** — choose the search folder.
+2. **Requested Codes** — paste requested codes.
+3. **Layout** — choose columns/gap and use **Preview plan** to inspect deterministic row/column allocation.
+4. **Build** — search source models and add resolved models unconstrained to the active assembly.
+
+Results show requested/resolved/missing outcome counts in the Results header area, support **Unresolved only**, and can be exported to UTF-8 CSV.
 
 Input separators:
 
@@ -83,7 +90,7 @@ Input separators:
 - semicolon,
 - tab.
 
-v0.5.0 fixes large multiline paste handling in the requested-code field. The native text area has 10 visible rows and a 32,767-character maximum length, and its enabled state is not redundantly reset on each text-input callback.
+The native text area has 10 visible rows and a 32,767-character maximum length, and its enabled state is not redundantly reset on each text-input callback.
 
 Instance allocation is fixed before source search. When a requested instance is not found, its planned grid position stays empty and the assembler continues with the next request at that request's own planned row/column. Later components therefore do not shift into the missing position.
 
@@ -94,10 +101,9 @@ Other behavior:
 - searches through the cancellable operation runner,
 - performs assembly only after source search completes,
 - adds components without constraints,
-- does not save automatically,
-- exports the final report as UTF-8 CSV.
+- does not save automatically.
 
-## v0.5.1 GUI architecture
+## v0.5.2 GUI architecture
 
 ```text
 Creo 9
@@ -106,7 +112,7 @@ Creo 9
   -> Aventics Toolbox Control Panel
        -> Weak Dimensions GUI
        -> Accuracy GUI
-       -> Inspection GUI
+       -> Inspection Builder GUI
        -> Instance Builder GUI
 ```
 
@@ -114,7 +120,7 @@ The project is still one Pro/TOOLKIT DLL. Tool GUIs are separate native resource
 
 Tool state is retained through `AppContext` while navigating between the Control Panel and tool dialogs. Navigation is blocked while an operation is running so the active operation's UI is not destroyed.
 
-The Full screen action expands the active tool dialog using native Creo TOOLKIT dialog-sizing APIs. **Home** returns to the Control Panel. The user can resize the dialog afterward to leave full-screen sizing.
+Each tool header contains **Toolbox**, **Maximize / restore**, and **Close** actions. The footer is reserved for operation status and **Cancel**. Maximize stores the current native dialog width/height before expanding to the screen-relative maximum and restores the saved size on the next activation.
 
 ## Target environment used for this project
 
@@ -171,7 +177,7 @@ After a successful build:
 Expected development DLL for the documented release tree:
 
 ```text
-C:\local\dev\AventicsToolbox_v0.5.1\dist\x86e_win64\obj\aventics_toolbox.dll
+C:\local\dev\AventicsToolbox_v0.5.2\dist\x86e_win64\obj\aventics_toolbox.dll
 ```
 
 Register the generated `protk.dat` in:
@@ -184,7 +190,7 @@ The command is `AVT.OpenToolbox` and can be added through Creo's **TOOLKIT Comma
 
 ## Native resource paths
 
-The v0.5.1 GUI resources are:
+The v0.5.2 GUI resources are:
 
 ```text
 text\resource\aventics_toolbox.res
@@ -200,7 +206,7 @@ Every file is mirrored under:
 text\usascii\resource\
 ```
 
-`package-release.ps1` compares SHA-256 hashes for all five resource pairs and refuses to package the release if any pair differs.
+`package-release.ps1` compares SHA-256 hashes for all five resource pairs and refuses to package the release if any pair differs. Resource labels remain ASCII-only for reliable rendering through the mirrored resource path.
 
 Message file:
 
@@ -233,7 +239,7 @@ body.prt.3
 body.prt.7
 ```
 
-with **Latest version only** enabled, only `body.prt.7` is processed. Plain unversioned `.prt` / `.asm` files are also recognized.
+with **Latest only** enabled, only `body.prt.7` is processed. Plain unversioned `.prt` / `.asm` files are also recognized.
 
 ## Session safety
 
@@ -249,69 +255,12 @@ snapshot session
 
 Models that already existed in the Creo session are preserved.
 
-Inspection and Instance Builder differ: models used by newly created assembly components must remain available in session, so they do not perform the QC cleanup behavior after placement.
+Inspection Builder and Instance Builder differ: models used by newly created assembly components must remain available in session, so they do not perform the QC cleanup behavior after placement.
 
 ## Cancellation
 
 Long folder operations use a Creo UI timer and process one source model per timer tick. Cancel takes effect between models.
 
-For Inspection, Cancel stops future additions; components already added to the active assembly are intentionally kept. No automatic rollback or save is performed.
+For Inspection Builder, Cancel stops future additions; components already added to the active assembly are intentionally kept. No automatic rollback or save is performed.
 
 For Instance Builder, source search completes before assembly begins. Cancelling during search therefore adds no new components.
-
-Tool switching is prevented while an operation is active.
-
-## Logs
-
-Development/runtime log:
-
-```text
-%LOCALAPPDATA%\Aventics\AventicsToolbox\logs\aventics_toolbox.log
-```
-
-## Build notes
-
-The project uses:
-
-- C++17,
-- Visual Studio 2022 x64,
-- `protk_dll_NU.lib`,
-- `ucore.lib`,
-- `udata.lib`.
-
-The CMake runtime/library choices mirror the original target workstation. If another Creo installation uses PTC's MD library variant, adapt the runtime and Toolkit library to match that installation's sample makefile.
-
-## Release packaging
-
-After final build + unlock:
-
-```powershell
-.\package-release.ps1
-```
-
-This produces:
-
-```text
-release\AventicsToolbox_v0.5.1\
-release\AventicsToolbox_v0.5.1_release.zip
-```
-
-The package contains the DLL, resources, version information, and installer scripts.
-
-Team install target defaults to:
-
-```text
-%LOCALAPPDATA%\Aventics\AventicsToolbox
-```
-
-No Visual Studio/CMake/source is required on end-user machines.
-
-## Known limitations
-
-- Folder paths passed to legacy Creo `ProPath` APIs are limited by the Creo TOOLKIT `ProPath` size.
-- STEP import depends on the installed Creo import capability/license.
-- Inspection has no one-click rollback.
-- Instance Builder CSV is a report only; it does not persist run history inside the application.
-- No automatic QC fixes.
-- No automatic model or assembly save.
-- Native Creo rendering, keyboard order, dialog resource loading, and Windows scaling still require in-Creo acceptance testing for each packaged build.
