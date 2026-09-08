@@ -61,6 +61,26 @@ bool V050ViewFromStatus(int status, V050View& view) {
 }
 
 V050View g_v050View = V050View::ControlPanel;
+bool g_v050Maximized = false;
+int g_v050RestoreWidth = 0;
+int g_v050RestoreHeight = 0;
+
+void V050RefreshControlPanelContext() {
+    ProMdl current = nullptr;
+    if (ModelUtils::CurrentModel(&current) == PRO_TK_NO_ERROR && current) {
+        const std::wstring name = ModelUtils::ModelName(current);
+        if (ModelUtils::IsAssembly(current)) {
+            UiUtils::SetLabel(kDialog, "OverviewSafety",
+                L"Active: " + name + L" | Assembly tools ready | No auto-save.");
+        } else {
+            UiUtils::SetLabel(kDialog, "OverviewSafety",
+                L"Active: " + name + L" | Open an assembly to use assembly tools.");
+        }
+    } else {
+        UiUtils::SetLabel(kDialog, "OverviewSafety",
+            L"No active model | Assembly tools require an active assembly.");
+    }
+}
 
 void V050SaveVisibleState() {
     auto& context = AppContext::Instance();
@@ -130,8 +150,8 @@ void V050RestoreVisibleState() {
         UiUtils::SetCheck(kDialog, kWeakLatest, context.weakLatest);
         UiUtils::SetProgress(kDialog, kWeakProgress, 0, 1);
         UiUtils::SetLabel(kDialog, kWeakFound, context.weakUseSelection
-            ? L"Selection mode: choose parts after starting the check."
-            : L"Folder mode: choose a folder and options, then start the check.");
+            ? L"Using selected parts. Click Check, then select parts in Creo."
+            : L"Using folder source. Choose a folder and folder options.");
         break;
     case V050View::Accuracy:
         UiUtils::SetInput(kDialog, kAccFolder, context.accuracyFolder);
@@ -144,8 +164,8 @@ void V050RestoreVisibleState() {
         UiUtils::SetCheck(kDialog, kAccAssemblies, context.accuracyAssemblies);
         UiUtils::SetProgress(kDialog, kAccProgress, 0, 1);
         UiUtils::SetLabel(kDialog, kAccFound, context.accuracyUseSelection
-            ? L"Selection mode: choose models after starting the check."
-            : L"Folder mode: choose a folder and options, then start the check.");
+            ? L"Using selected models. Click Check, then select models in Creo."
+            : L"Using folder source. Choose a folder and folder options.");
         break;
     case V050View::Inspection:
         UiUtils::SetInput(kDialog, kInspFolder, context.inspectionFolder);
@@ -175,7 +195,8 @@ void V050RestoreVisibleState() {
         break;
     case V050View::ControlPanel:
         UiUtils::SetLabel(kDialog, kOverviewRunAllStatus,
-            L"Ready. Open a tool from the Control Panel to work in its own window.");
+            L"Run Weak Dimensions and Accuracy from one Creo selection.");
+        V050RefreshControlPanelContext();
         break;
     }
 }
@@ -192,6 +213,7 @@ void V050RefreshVisible() {
         InstanceBuilderUi::Refresh(kDialog);
         break;
     case V050View::ControlPanel:
+        V050RefreshControlPanelContext();
         break;
     }
 }
@@ -275,9 +297,38 @@ void V050OnInstance(char*, char*, ProAppData) { V050Navigate(V050View::InstanceB
 void V050OnControlPanel(char*, char*, ProAppData) { V050Navigate(V050View::ControlPanel); }
 
 void V050OnFullScreen(char*, char*, ProAppData) {
-    ProUIDialogHorzsizeSet(const_cast<char*>(kDialog), 1000);
-    ProUIDialogVertsizeSet(const_cast<char*>(kDialog), 1000);
-    SetGlobalStatus(L"Full screen enabled. Resize the window to leave full screen.");
+    if (!g_v050Maximized) {
+        int width = 0;
+        int height = 0;
+        const ProError widthError = ProUIDialogHorzsizeGet(const_cast<char*>(kDialog), &width);
+        const ProError heightError = ProUIDialogVertsizeGet(const_cast<char*>(kDialog), &height);
+        if (widthError != PRO_TK_NO_ERROR || heightError != PRO_TK_NO_ERROR || width <= 0 || height <= 0) {
+            SetGlobalStatus(L"Could not read the current window size.");
+            return;
+        }
+        g_v050RestoreWidth = width;
+        g_v050RestoreHeight = height;
+        const ProError widthSet = ProUIDialogHorzsizeSet(const_cast<char*>(kDialog), 1000);
+        const ProError heightSet = ProUIDialogVertsizeSet(const_cast<char*>(kDialog), 1000);
+        if (widthSet != PRO_TK_NO_ERROR || heightSet != PRO_TK_NO_ERROR) {
+            SetGlobalStatus(L"Could not maximize the tool window.");
+            return;
+        }
+        g_v050Maximized = true;
+        SetGlobalStatus(L"Window maximized. Use Maximize / restore to return to the previous size.");
+        return;
+    }
+
+    if (g_v050RestoreWidth > 0 && g_v050RestoreHeight > 0) {
+        const ProError widthSet = ProUIDialogHorzsizeSet(const_cast<char*>(kDialog), g_v050RestoreWidth);
+        const ProError heightSet = ProUIDialogVertsizeSet(const_cast<char*>(kDialog), g_v050RestoreHeight);
+        if (widthSet == PRO_TK_NO_ERROR && heightSet == PRO_TK_NO_ERROR) {
+            g_v050Maximized = false;
+            SetGlobalStatus(L"Window restored.");
+            return;
+        }
+    }
+    SetGlobalStatus(L"Could not restore the previous window size.");
 }
 
 void V050OnClose(char*, char*, ProAppData) {
@@ -426,11 +477,14 @@ void V050SetupCallbacks() {
 
 ProError V050ShowView(V050View view, int& status) {
     g_v050View = view;
+    g_v050Maximized = false;
+    g_v050RestoreWidth = 0;
+    g_v050RestoreHeight = 0;
     const ProError createError = ProUIDialogCreate(
         const_cast<char*>(kDialog),
         const_cast<char*>(V050Resource(view)));
     if (createError != PRO_TK_NO_ERROR) {
-        Logger::Error(L"ProUIDialogCreate failed for v0.5.0 view: " + ModelUtils::ErrorName(createError));
+        Logger::Error(L"ProUIDialogCreate failed for v0.5.2 view: " + ModelUtils::ErrorName(createError));
         return createError;
     }
 
