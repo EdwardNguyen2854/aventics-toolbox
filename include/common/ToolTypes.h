@@ -93,6 +93,33 @@ struct InspectionResult {
     std::wstring details;
 };
 
+enum class InstanceBuildStatus {
+    Planned,
+    Added,
+    NotFound,
+    Failed,
+    Skipped
+};
+
+struct InstanceRequest {
+    std::wstring code;
+    int row = 1;
+    int column = 1;
+};
+
+struct InstanceBuildResult {
+    std::wstring requestedCode;
+    int row = 1;
+    int column = 1;
+    std::wstring genericName;
+    std::wstring sourcePath;
+    std::wstring addedModelName;
+    ProMdlType modelType = PRO_MDL_UNUSED;
+    InstanceBuildStatus status = InstanceBuildStatus::Planned;
+    int componentFeatureId = -1;
+    std::wstring details;
+};
+
 struct FolderScanOptions {
     bool includeSubfolders = false;
     bool latestCreoVersionOnly = true;
@@ -114,6 +141,13 @@ struct InspectionOptions {
     bool arrangeRowsAlongX = false;
     // false uses the X-Y plane; true replaces Y with Z for the arrangement plane.
     bool useZAxisForRows = false;
+    int columns = 5;
+    double gap = 50.0; // active assembly units
+};
+
+struct InstanceBuilderOptions {
+    bool includeSubfolders = false;
+    bool latestCreoVersionOnly = true;
     int columns = 5;
     double gap = 50.0; // active assembly units
 };
