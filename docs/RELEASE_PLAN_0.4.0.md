@@ -92,6 +92,178 @@ Use the same vertical rhythm for all functional tabs:
 9. Contextual result actions.
 10. Shared global footer.
 
+### ASCII layout reference
+
+These wireframes define hierarchy and expansion behavior, not exact pixel dimensions. Keep the native Creo control set; the drawings are a target structure for the `.res` layouts.
+
+#### Shared shell
+
+```text
++--------------------------------------------------------------------------------------+
+| Aventics Toolbox - v0.4.0                                                           |
+| [Overview] [Weak Dimensions] [Accuracy] [Inspection] [Instance Builder]             |
++--------------------------------------------------------------------------------------+
+|                                                                                      |
+|                         ACTIVE TAB CONTENT                                            |
+|                    (expands with dialog size)                                        |
+|                                                                                      |
++--------------------------------------------------------------------------------------+
+| Tool | State | current item / completion summary          [Cancel operation] [Close] |
++--------------------------------------------------------------------------------------+
+```
+
+The tab content owns setup and results. The footer owns cross-tab operation state. Do not duplicate a long global status sentence inside each tab.
+
+#### Overview
+
+```text
++--------------------------------------------------------------------------------------+
+| Aventics Toolbox                                                                     |
+| Quality-control and assembly utilities for Creo Parametric.                          |
+|                                                                                      |
+| QUALITY CONTROL - read-only                                                          |
+| +----------------------------------------------------------------------------------+ |
+| | Run all QC on Creo selection                         [Run all QC]                 | |
+| | Weak Dimensions - find weak section dimensions      [Open]   Last: 3 issues     | |
+| | Accuracy - check ABSOLUTE = 0.001                    [Open]   Last: all passed   | |
+| +----------------------------------------------------------------------------------+ |
+|                                                                                      |
+| ASSEMBLY TOOLS - add unconstrained components; no automatic save                     |
+| +----------------------------------------------------------------------------------+ |
+| | Inspection - add discovered Creo / STEP models      [Open]   Last: 18 added     | |
+| | Instance Builder - resolve codes and build a grid    [Open]   Last: 2 unresolved | |
+| +----------------------------------------------------------------------------------+ |
++--------------------------------------------------------------------------------------+
+```
+
+The native resource does not need literal bordered cards. The grouping can be implemented with headings, spacing, aligned action buttons, and one-line summaries.
+
+#### Weak Dimensions / Accuracy shared QC pattern
+
+```text
++--------------------------------------------------------------------------------------+
+| Weak dimensions                                                                      |
+| Find weak section dimensions in selected parts or a folder.                          |
+|                                                                                      |
+| SOURCE                                                                               |
+| (o) Creo selection   ( ) Folder                                                      |
+| Folder  [............................................................] [Browse...]    |
+|         [ ] Include subfolders   [x] Latest version only                             |
+|         Selection mode: choose parts after starting the check.                       |
+|                                                                                      |
+| [Check dimensions]                         [==========------] 32 / 50 models          |
+|                                                                                      |
+| RESULTS                                              50 parts | 6 issues              |
+| [ ] Issues only                         Search [.................................]    |
+| +----------------------------------------------------------------------------------+ |
+| | Part              | Status | Feature            | Section | Weak dim            | |
+| | housing.prt       | Fail   | Extrude 1 #42      | 0       | sd18                | |
+| | bracket.prt       | Pass   | -                  | -       | -                   | |
+| | ...                                                                          ... | |
+| +----------------------------------------------------------------------------------+ |
+| SELECTED RESULT                                                                      |
+| C:\...\housing.prt | Extrude 1 #42 | section 0 | sd18                              |
+| Dimension can be strengthened on a copied section.                                   |
+| [Open part] [Go to feature] [Clear results]                                          |
++--------------------------------------------------------------------------------------+
+```
+
+Accuracy uses the same structure, with `Required: ABSOLUTE = 0.001`, model-type options in folder mode, `Check accuracy`, and its five proposed result columns. The result table is the expanding row; setup and action rows remain compact.
+
+#### Inspection
+
+```text
++--------------------------------------------------------------------------------------+
+| Inspection assembly builder                                                          |
+| Active: inspection.asm | Adds unconstrained components; no automatic save.           |
+|                                                                                      |
+| SOURCE                                                                               |
+| Folder  [............................................................] [Browse...]    |
+| Discovery   [ ] Include subfolders   [x] Latest version only                         |
+| Types       [x] Parts   [x] Assemblies   [x] STEP                                    |
+| Family      [x] Instances              [ ] Also generic                              |
+|             42 eligible source files                                                  |
+|                                                                                      |
+| PLACEMENT                                                                            |
+| Arrangement  (o) Auto arrange   ( ) Same origin                                      |
+| Row direction (o) Default        ( ) Rows along X                                    |
+| Plane         (o) X-Y            ( ) X-Z                                             |
+| Grid          Columns [ 5 ]      Gap [ 50.0 ] assembly units                         |
+|                                                                                      |
+| [Add to assembly]                          [==========------] 18 / 42 sources          |
+|                                                                                      |
+| RESULTS                         18 added | 1 warning | 0 failed   [ ] Problems only    |
+| +----------------------------------------------------------------------------------+ |
+| | Source            | Kind       | Added model       | Status  | Feature ID        | |
+| | valve.prt         | Part       | valve             | Added   | 104               | |
+| | ...                                                                          ... | |
+| +----------------------------------------------------------------------------------+ |
+| SELECTED RESULT                                                                      |
+| C:\...\valve.prt | Part | Added as valve | Feature ID 104                         |
+| [Clear results]                                                                      |
++--------------------------------------------------------------------------------------+
+```
+
+If mutually exclusive radio controls are not practical in the Creo resource API, retain checkbox controls but preserve these visible groupings and short labels. `Columns` and `Gap` are disabled when Same origin is active.
+
+#### Instance Builder
+
+```text
++--------------------------------------------------------------------------------------+
+| Instance builder                                                                     |
+| Active: inspection.asm | Adds unconstrained components; no automatic save.           |
+|                                                                                      |
+| 1. INPUT                                                                             |
+| Search folder [......................................................] [Browse...]    |
+|               [ ] Include subfolders   [x] Latest version only                       |
+| Requested codes                                                                      |
+| +----------------------------------------------------------------------------------+ |
+| | A123                                                                             | |
+| | A124                                                                             | |
+| | B901                                                                             | |
+| | ...                                                                              | |
+| +----------------------------------------------------------------------------------+ |
+| One per line; comma, semicolon, and tab are also accepted.                           |
+| 24 requested codes                                                                   |
+|                                                                                      |
+| 2. PLAN                                                                              |
+| Columns [ 5 ]    Gap [ 50.0 ]    [Plan positions]                                   |
+| 24 requested | 5 columns | 5 planned rows                                            |
+|                                                                                      |
+| 3. BUILD AND REVIEW                                                                  |
+| [Find and add instances]                    [==========------] 8 / 25 sources         |
+|                                                   17 / 24 codes resolved              |
+| RESULTS                                      17 added | 7 unresolved                  |
+| [ ] Unresolved only                                                                   |
+| +----------------------------------------------------------------------------------+ |
+| | Requested code | Row | Col | Generic          | Added model      | Status         | |
+| | A123           | 1   | 1   | valve_generic   | A123             | Added          | |
+| | A124           | 1   | 2   | valve_generic   | A124             | Added          | |
+| | B901           | 1   | 3   | -               | -                | Not found      | |
+| | ...                                                                          ... | |
+| +----------------------------------------------------------------------------------+ |
+| SELECTED RESULT                                                                      |
+| B901 | row 1, column 3 | Source: - | No exact model or family instance found.        |
+| [Export CSV report] [Clear results]                                                   |
++--------------------------------------------------------------------------------------+
+```
+
+State emphasis for Instance Builder:
+
+```text
+INPUT CHANGED  -> plan is stale / not created
+      |
+      v
+PLAN POSITIONS -> allocation visible; no source search yet
+      |
+      v
+FIND + ADD     -> search progress -> assembly -> final results
+      |
+      +---- Cancel during search: no components added
+```
+
+At minimum supported size, the requested-codes area and result table should receive most of the extra vertical space. The allocation and action rows should not grow vertically.
+
 ### Spacing and density
 
 Use a small set of repeatable offsets instead of per-tab tuning:
