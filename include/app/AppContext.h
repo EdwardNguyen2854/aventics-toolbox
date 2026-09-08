@@ -34,10 +34,12 @@ public:
     bool inspectionStep = true;
     bool inspectionAutoArrange = true;
     bool inspectionRowsAlongX = false;
+    bool inspectionUseZAxis = false;
     int inspectionColumns = 5;
     double inspectionGap = 50.0;
     bool instanceRecursive = false;
     bool instanceLatest = true;
+    bool instanceUnresolvedOnly = false;
     int instanceColumns = 5;
     double instanceGap = 50.0;
 
