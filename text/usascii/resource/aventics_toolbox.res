@@ -5,7 +5,7 @@
     (PushButton FooterCancelButton)
     (PushButton CloseButton))
   (Resources
-    (.Label "Aventics Toolbox - v0.4.0")
+    (.Label "Aventics Toolbox - v0.4.1")
     (.Resizeable True) (.RememberSize True)
     (ToolTabs.Decorated True)
     (ToolTabs.AttachLeft True) (ToolTabs.AttachRight True)
@@ -155,7 +155,7 @@
         AccTitle AccRule AccSourceTitle AccUseSelection
         (Grid (Rows 0) (Cols 0 1 0) AccFolderLabel AccFolder AccBrowseButton)
         (Grid (Rows 0) (Cols 0 0 0 1) AccOptionsTitle AccRecursive AccLatest AccFound)
-        (Grid (Rows 0) (Cols 0 0) AccTypesTitle AccParts AccAssemblies)
+        (Grid (Rows 0) (Cols 0 0 0) AccTypesTitle AccParts AccAssemblies)
         (Grid (Rows 0) (Cols 0 1 0) AccRunButton AccProgress AccProgressText)
         AccResultsTitle
         (Grid (Rows 0) (Cols 0 0 1) AccIssuesOnly AccSearchLabel AccSearch)
@@ -222,7 +222,7 @@
       (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
         InspTitle InspDescription InspTargetTitle InspActiveAsm InspSourceTitle
         (Grid (Rows 0) (Cols 0 1 0) InspFolderLabel InspFolder InspBrowseButton)
-        (Grid (Rows 0) (Cols 0 0) InspDiscoveryLabel InspRecursive InspLatest)
+        (Grid (Rows 0) (Cols 0 0 0) InspDiscoveryLabel InspRecursive InspLatest)
         (Grid (Rows 0) (Cols 0 0 0 0) InspTypesLabel InspParts InspAssemblies InspStep)
         (Grid (Rows 0) (Cols 0 0 0 1) InspFamilyGroupLabel InspFamily InspGeneric InspFound)
         InspPlacementTitle

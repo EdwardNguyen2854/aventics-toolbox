@@ -1,6 +1,8 @@
-# Aventics Toolbox v0.4.0
+# Aventics Toolbox v0.4.1
 
 Native Creo Parametric 9 Pro/TOOLKIT engineering toolbox with a five-tab Creo GUI.
+
+v0.4.1 is a runtime hotfix for the v0.4.0 UI redesign. It corrects malformed native grid definitions that could prevent the toolbox dialog from loading and makes the dialog-open failure popup independent of `aventics_messages.txt`.
 
 ## Included tools
 
@@ -133,6 +135,8 @@ The v0.4.0 interface keeps the v0.3.0 choose/configure/run/review foundation and
 - global operation ownership in the footer,
 - session retention for the Inspection X-Z choice and Instance Builder review filter.
 
+v0.4.1 keeps that layout and fixes native resource structure so every grid row declares the same number of columns as controls. It also uses a direct Creo UI error dialog if the toolbox cannot be created, so error reporting does not depend on a message-file lookup.
+
 ## Target environment used for this project
 
 ```text
@@ -188,13 +192,13 @@ After a successful build:
 Expected development DLL for the documented release tree:
 
 ```text
-C:\local\dev\AventicsToolbox_v0.4.0\dist\x86e_win64\obj\aventics_toolbox.dll
+C:\local\dev\AventicsToolbox_v0.4.1\dist\x86e_win64\obj\aventics_toolbox.dll
 ```
 
 Then register:
 
 ```text
-C:\local\dev\AventicsToolbox_v0.4.0\protk.dat
+C:\local\dev\AventicsToolbox_v0.4.1\protk.dat
 ```
 
 in:
@@ -214,13 +218,15 @@ text\resource\aventics_toolbox.res
 text\usascii\resource\aventics_toolbox.res
 ```
 
-`package-release.ps1` now compares their SHA-256 hashes and refuses to package the release if they differ.
+`package-release.ps1` compares their SHA-256 hashes and refuses to package the release if they differ.
 
 Message file:
 
 ```text
 text\aventics_messages.txt
 ```
+
+The regular menu/ribbon labels still use the message file. The toolbox-open failure path in v0.4.1 does not; it uses `ProUIMessageDialogDisplay()` directly and includes the TOOLKIT error name.
 
 ## Development cycle
 
@@ -234,6 +240,8 @@ edit
 ```
 
 `build-local.ps1` runs `protk_unlock` after a successful build.
+
+When changing `aventics_messages.txt`, fully restart Creo before testing the message change because Creo loads a message file only once per session.
 
 ## Folder version behavior
 
@@ -287,6 +295,8 @@ Development/runtime log:
 %LOCALAPPDATA%\Aventics\AventicsToolbox\logs\aventics_toolbox.log
 ```
 
+If the native toolbox dialog cannot be created, v0.4.1 also shows the returned TOOLKIT error name in a direct Creo error popup.
+
 ## Build notes
 
 The project uses:
@@ -310,8 +320,8 @@ After final build + unlock:
 This produces:
 
 ```text
-release\AventicsToolbox_v0.4.0\
-release\AventicsToolbox_v0.4.0_release.zip
+release\AventicsToolbox_v0.4.1\
+release\AventicsToolbox_v0.4.1_release.zip
 ```
 
 The package contains only the DLL, resources, version information, and installer scripts.
@@ -324,7 +334,7 @@ Team install target defaults to:
 
 No Visual Studio/CMake/source is required on end-user machines.
 
-## Known v0.4.0 limitations
+## Known v0.4.1 limitations
 
 - Folder paths passed to legacy Creo `ProPath` APIs are limited by the Creo TOOLKIT `ProPath` size.
 - STEP import depends on the installed Creo import capability/license.
@@ -339,7 +349,7 @@ No Visual Studio/CMake/source is required on end-user machines.
 ## Project layout
 
 ```text
-AventicsToolbox_v0.4.0
+AventicsToolbox_v0.4.1
 ├─ include/
 │  ├─ app/
 │  ├─ common/

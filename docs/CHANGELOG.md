@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Fixed malformed native resource grids in the Accuracy model-type row and Inspection discovery row that could cause the v0.4.0 toolbox dialog to fail during `ProUIDialogCreate()`.
+- Replaced the dialog-open failure's `ProMessageDisplay()` dependency with a direct Creo `ProUIMessageDialogDisplay()` popup so the original TOOLKIT error remains visible even when `aventics_messages.txt` is stale, cached, missing, or mismatched.
+- Kept the runtime log as the detailed diagnostic source for native dialog failures.
+- Synchronized application, CMake, dialog-title, release package, README, architecture, and version metadata to v0.4.1.
+
 ## 0.4.0
 
 - Reworked the native Creo layout around clearer Source, Placement, Results, and staged workflow sections.
