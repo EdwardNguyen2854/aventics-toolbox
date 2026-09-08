@@ -14,4 +14,7 @@ struct FamilyInstanceInfo {
 class FamilyTableService {
 public:
     static ProError RetrieveInstances(ProMdl generic, std::vector<FamilyInstanceInfo>& instances);
+    static ProError RetrieveMatchingInstances(ProMdl generic,
+                                              const std::vector<std::wstring>& requestedNames,
+                                              std::vector<FamilyInstanceInfo>& instances);
 };
