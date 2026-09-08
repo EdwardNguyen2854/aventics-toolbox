@@ -1,4 +1,4 @@
-# Aventics Toolbox v0.4.0 Architecture
+# Aventics Toolbox v0.4.1 Architecture
 
 ## Product boundary
 
@@ -44,6 +44,8 @@ Input -> Plan -> Build and review
 Its review table keeps code, allocated cell, resolved generic/model, and status visible while full source/feature/diagnostic data remains in selected-row details or CSV. An Unresolved-only view filters Not Found, Failed, and Skipped rows without changing underlying result identity.
 
 A shared footer reports the owning operation and cancellation state from every tab. While an operation runs, callbacks guard source/run/clear changes so the frozen queue cannot be replaced. Tab navigation and result review remain available.
+
+v0.4.1 corrects two malformed native resource grids introduced with the v0.4.0 layout: Accuracy's model-type row and Inspection's discovery row now declare one column per child control. If `ToolboxDialog::Show()` still returns an error, `Commands.cpp` uses `ProUIMessageDialogDisplay()` directly rather than relying on `aventics_messages.txt`, so the original TOOLKIT failure remains visible even if a message file is stale or unavailable.
 
 ## Shared services
 
