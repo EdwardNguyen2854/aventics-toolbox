@@ -6,13 +6,22 @@
 #include "common/ModelUtils.h"
 #include "common/SessionSnapshot.h"
 #include "common/StepImporter.h"
+#include "common/UiUtils.h"
 
 #include <ProAsmcomp.h>
 #include <ProMdl.h>
 #include <utility>
 
+namespace {
+InspectionOptions ResolveInspectionOptions(const InspectionOptions& options) {
+    InspectionOptions resolved = options;
+    resolved.useZAxisForRows = UiUtils::GetCheck("aventics_toolbox", "InspUseZAxis", resolved.useZAxisForRows);
+    return resolved;
+}
+}
+
 InspectionBuilder::InspectionBuilder(ProAssembly targetAssembly, const InspectionOptions& options)
-    : targetAssembly_(targetAssembly), options_(options), placement_(options) {}
+    : targetAssembly_(targetAssembly), options_(ResolveInspectionOptions(options)), placement_(options_) {}
 
 void InspectionBuilder::Process(const ModelDescriptor& descriptor, std::vector<InspectionResult>& results) {
     if (!targetAssembly_) {
@@ -125,4 +134,3 @@ void InspectionBuilder::AssembleOne(ProMdl model, const std::wstring& sourceName
     }
     results.push_back(std::move(result));
 }
-
