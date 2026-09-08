@@ -25,9 +25,9 @@
     (Label OverviewTitle) (Label OverviewIntro)
     (Label OverviewQcTitle) (Label OverviewQcDesc)
     (PushButton OverviewRunAllButton) (Label OverviewRunAllStatus)
-    (PushButton OverviewWeakButton) (PushButton OverviewAccButton)
+    (PushButton OverviewWeakButton) (PushButton OverviewAccButton) (Label OverviewQcSpacer)
     (Label OverviewAssemblyTitle) (Label OverviewAssemblyDesc)
-    (PushButton OverviewInspButton) (PushButton OverviewInstButton)
+    (PushButton OverviewInspButton) (PushButton OverviewInstButton) (Label OverviewAssemblySpacer)
     (Label OverviewSafety) (Label OverviewSpacer))
   (Resources
     (.Label "Overview")
@@ -39,22 +39,24 @@
     (OverviewRunAllStatus.Label "Ready. Results appear in the Weak Dimensions and Accuracy tabs.")
     (OverviewWeakButton.Label "Open Weak Dimensions")
     (OverviewAccButton.Label "Open Accuracy")
+    (OverviewQcSpacer.Label "")
     (OverviewAssemblyTitle.Label "Assembly tools")
     (OverviewAssemblyDesc.Label "Inspection and Instance Builder add unconstrained components to the active assembly.")
     (OverviewInspButton.Label "Open Inspection")
     (OverviewInstButton.Label "Open Instance Builder")
+    (OverviewAssemblySpacer.Label "")
     (OverviewSafety.Label "Assembly tools never save the active assembly automatically.")
     (OverviewSpacer.Label "")
     (.Decorated False)
     (.TopOffset 12) (.BottomOffset 12) (.LeftOffset 12) (.RightOffset 12)
     (.Layout
-      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 1) (Cols 1)
+      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 1) (Cols 1)
         OverviewTitle OverviewIntro OverviewQcTitle OverviewQcDesc
         OverviewRunAllButton OverviewRunAllStatus
-        (Grid (Rows 0) (Cols 0 0 1) OverviewWeakButton OverviewAccButton OverviewSpacer)
+        (Grid (Rows 0) (Cols 0 0 1) OverviewWeakButton OverviewAccButton OverviewQcSpacer)
         OverviewAssemblyTitle OverviewAssemblyDesc
-        (Grid (Rows 0) (Cols 0 0 1) OverviewInspButton OverviewInstButton OverviewSpacer)
-        OverviewSafety))))
+        (Grid (Rows 0) (Cols 0 0 1) OverviewInspButton OverviewInstButton OverviewAssemblySpacer)
+        OverviewSafety OverviewSpacer))))
 
 (Layout WeakLayout
   (Components
@@ -149,11 +151,11 @@
     (.Decorated False)
     (.TopOffset 8) (.BottomOffset 8) (.LeftOffset 8) (.RightOffset 8)
     (.Layout
-      (Grid (Rows 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
+      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
         AccTitle AccRule AccSourceTitle AccUseSelection
         (Grid (Rows 0) (Cols 0 1 0) AccFolderLabel AccFolder AccBrowseButton)
         (Grid (Rows 0) (Cols 0 0 0 1) AccOptionsTitle AccRecursive AccLatest AccFound)
-        (Grid (Rows 0) (Cols 0 0 0 1) AccTypesTitle AccParts AccAssemblies AccSpacer)
+        (Grid (Rows 0) (Cols 0 0) AccTypesTitle AccParts AccAssemblies)
         (Grid (Rows 0) (Cols 0 1 0) AccRunButton AccProgress AccProgressText)
         AccResultsTitle
         (Grid (Rows 0) (Cols 0 0 1) AccIssuesOnly AccSearchLabel AccSearch)
@@ -217,16 +219,17 @@
     (.Decorated False)
     (.TopOffset 8) (.BottomOffset 8) (.LeftOffset 8) (.RightOffset 8)
     (.Layout
-      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
+      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
         InspTitle InspDescription InspTargetTitle InspActiveAsm InspSourceTitle
         (Grid (Rows 0) (Cols 0 1 0) InspFolderLabel InspFolder InspBrowseButton)
-        (Grid (Rows 0) (Cols 0 0 0 1) InspDiscoveryLabel InspRecursive InspLatest InspSpacer)
-        (Grid (Rows 0) (Cols 0 0 0 0 1) InspTypesLabel InspParts InspAssemblies InspStep InspSpacer)
+        (Grid (Rows 0) (Cols 0 0) InspDiscoveryLabel InspRecursive InspLatest)
+        (Grid (Rows 0) (Cols 0 0 0 0) InspTypesLabel InspParts InspAssemblies InspStep)
         (Grid (Rows 0) (Cols 0 0 0 1) InspFamilyGroupLabel InspFamily InspGeneric InspFound)
         InspPlacementTitle
-        (Grid (Rows 0) (Cols 0 0 0 0 1) InspArrangementLabel InspArrange InspDirectionLabel InspRowsAlongX InspSpacer)
-        (Grid (Rows 0) (Cols 0 0 0 1) InspPlaneLabel InspUseZAxis InspGridLabel InspSpacer)
-        (Grid (Rows 0) (Cols 0 0 0 0 0 1) InspColumnsLabel InspColumns InspGapLabel InspGap InspValidation InspSpacer)
+        (Grid (Rows 0) (Cols 0 0) InspArrangementLabel InspArrange)
+        (Grid (Rows 0) (Cols 0 0) InspDirectionLabel InspRowsAlongX)
+        (Grid (Rows 0) (Cols 0 0) InspPlaneLabel InspUseZAxis)
+        (Grid (Rows 0) (Cols 0 0 0 0 0 1) InspGridLabel InspColumnsLabel InspColumns InspGapLabel InspGap InspValidation)
         (Grid (Rows 0) (Cols 0 1 0) InspBuildButton InspProgress InspProgressText)
         InspResultsTitle InspTable InspSummary InspDetails
         (Grid (Rows 0) (Cols 0 1) InspClearButton InspSpacer)))))
@@ -240,7 +243,8 @@
     (Label InstPlanTitle) (Label InstColumnsLabel) (InputPanel InstColumns)
     (Label InstGapLabel) (InputPanel InstGap) (PushButton InstPlanButton) (Label InstValidation)
     (Label InstBuildReviewTitle) (PushButton InstBuildButton) (ProgressBar InstProgress) (Label InstProgressText)
-    (Label InstResultsTitle) (CheckButton InstUnresolvedOnly) (Table InstTable) (Label InstSummary) (Label InstDetails)
+    (Label InstResultsTitle) (CheckButton InstUnresolvedOnly) (Label InstResultsSpacer)
+    (Table InstTable) (Label InstSummary) (Label InstDetails)
     (PushButton InstExportButton) (PushButton InstClearButton) (Label InstSpacer))
   (Resources
     (.Label "Instance Builder")
@@ -268,6 +272,7 @@
     (InstProgressText.Label "Ready")
     (InstResultsTitle.Label "Results")
     (InstUnresolvedOnly.Label "Unresolved only")
+    (InstResultsSpacer.Label "")
     (InstTable.RowNames "empty")
     (InstTable.ColumnNames "Code" "Row" "Column" "Generic" "AddedModel" "Status")
     (InstTable.ColumnLabels "Requested code" "Row" "Column" "Generic" "Added model" "Status")
@@ -281,14 +286,14 @@
     (.Decorated False)
     (.TopOffset 8) (.BottomOffset 8) (.LeftOffset 8) (.RightOffset 8)
     (.Layout
-      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
-        InstTitle InstDescription InstTargetTitle InstActiveAsm InstInputTitle
+      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
+        InstTitle InstDescription InstTargetTitle InstActiveAsm InstInputTitle InstSourceTitle
         (Grid (Rows 0) (Cols 0 1 0) InstFolderLabel InstFolder InstBrowseButton)
         (Grid (Rows 0) (Cols 0 0 1) InstRecursive InstLatest InstFound)
         InstCodesTitle InstCodes InstCodesHelp InstPlanTitle
         (Grid (Rows 0) (Cols 0 0 0 0 0 1) InstColumnsLabel InstColumns InstGapLabel InstGap InstPlanButton InstValidation)
         InstBuildReviewTitle
         (Grid (Rows 0) (Cols 0 1 0) InstBuildButton InstProgress InstProgressText)
-        (Grid (Rows 0) (Cols 0 0 1) InstResultsTitle InstUnresolvedOnly InstSpacer)
+        (Grid (Rows 0) (Cols 0 0 1) InstResultsTitle InstUnresolvedOnly InstResultsSpacer)
         InstTable InstSummary InstDetails
         (Grid (Rows 0) (Cols 0 0 1) InstExportButton InstClearButton InstSpacer)))))
