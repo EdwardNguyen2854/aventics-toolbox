@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 namespace InstanceBuilderUi {
 void SetupCallbacks(const char* dialog);
 void RestoreState(const char* dialog);
