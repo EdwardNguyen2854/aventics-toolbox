@@ -14,7 +14,7 @@ AVT.Command.Description
 Open the tabbed Aventics Toolbox interface.
 
 
-AVT.Error.Dialog
+%CEAVT.Error.Dialog
 Aventics Toolbox could not open its native Creo dialog. Check the Aventics Toolbox log for the underlying TOOLKIT error.
 
 
