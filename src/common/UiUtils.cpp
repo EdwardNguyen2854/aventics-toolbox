@@ -21,7 +21,12 @@ namespace {
 void Display(const char* key) {
     ProFileName file;
     ProStringToWstring(file, const_cast<char*>("aventics_messages.txt"));
-    ProMessageDisplay(file, const_cast<char*>(key));
+    const ProError error = ProMessageDisplay(file, const_cast<char*>(key));
+    if (error != PRO_TK_NO_ERROR) {
+        std::wstring keyText;
+        for (const char* p = key; p && *p; ++p) keyText.push_back(static_cast<wchar_t>(*p));
+        Logger::Error(L"ProMessageDisplay failed for " + keyText + L": " + ModelUtils::ErrorName(error));
+    }
 }
 }
 
