@@ -1,4 +1,4 @@
-# Aventics Toolbox v0.4.1 Architecture
+# Aventics Toolbox v0.5.0 Architecture
 
 ## Product boundary
 
@@ -8,44 +8,40 @@ One external Creo Pro/TOOLKIT application:
 Creo 9
   -> protk.dat
   -> aventics_toolbox.dll
-  -> native tabbed Aventics Toolbox dialog
+  -> Aventics Toolbox Control Panel
+       -> Weak Dimensions GUI
+       -> Accuracy GUI
+       -> Inspection GUI
+       -> Instance Builder GUI
 ```
 
-Tools are internal C++ modules, not separate DLLs.
+The tools remain internal C++ modules in one DLL. v0.5.0 changes the native UI shell, not the application/DLL boundary.
 
-## UI
+## UI shell
 
-Top-level native Creo tabs:
+The Control Panel is the entry GUI. Selecting a tool exits the launcher view and opens that tool's standalone native Creo dialog. Each tool dialog contains:
 
-- Overview
-- Weak Dimensions
-- Accuracy
-- Inspection
-- Instance Builder
+- its own source/options/results controls,
+- shared operation status and cancellation,
+- a **Full screen** action,
+- a **Control Panel** action,
+- a close action.
 
-The tabs keep their in-session state when the user switches between them. Overview distinguishes read-only QC from the two assembly-modifying tools and links all four functional tabs directly.
+Tool navigation is blocked while an operation is active so an in-progress dialog is not destroyed. Session state is stored in `AppContext`, therefore paths, filters, results, placement settings, and Instance Builder input survive navigation between the Control Panel and tool dialogs.
 
-The common functional-tab hierarchy is:
+The native resources are split into five files:
 
 ```text
-context/target -> source -> options -> primary action -> results -> selected details/actions
+aventics_toolbox.res            # Control Panel
+aventics_weak.res               # Weak Dimensions
+aventics_accuracy.res           # Accuracy
+aventics_inspection.res         # Inspection
+aventics_instance_builder.res   # Instance Builder
 ```
 
-Weak Dimensions and Accuracy each expose one primary run action and switch between Creo selection and folder input. Their result tables support text search, an Issues-only view, selected-row details, and contextual model actions. v0.4.0 removes long free-text diagnostic columns from the visible table so identity/status remain scannable at smaller widths.
+All five files are mirrored under `text/usascii/resource`. `package-release.ps1` verifies SHA-256 parity for every resource pair before packaging.
 
-Inspection groups its active target, source discovery, source types, family-table choices, and placement settings. Auto arrange supports row progression, X-Y or X-Z placement planes, columns, and gap; disabling Auto arrange uses same-origin placement. The X-Z choice is retained for the current Creo session and read by `InspectionBuilder` when a run starts.
-
-Instance Builder is intentionally modular in `InstanceBuilderUi.cpp` and presents three stages:
-
-```text
-Input -> Plan -> Build and review
-```
-
-Its review table keeps code, allocated cell, resolved generic/model, and status visible while full source/feature/diagnostic data remains in selected-row details or CSV. An Unresolved-only view filters Not Found, Failed, and Skipped rows without changing underlying result identity.
-
-A shared footer reports the owning operation and cancellation state from every tab. While an operation runs, callbacks guard source/run/clear changes so the frozen queue cannot be replaced. Tab navigation and result review remain available.
-
-v0.4.1 corrects two malformed native resource grids introduced with the v0.4.0 layout: Accuracy's model-type row and Inspection's discovery row now declare one column per child control. If `ToolboxDialog::Show()` still returns an error, `Commands.cpp` uses `ProUIMessageDialogDisplay()` directly rather than relying on `aventics_messages.txt`, so the original TOOLKIT failure remains visible even if a message file is stale or unavailable.
+The Full screen action uses Creo TOOLKIT dialog sizing APIs and expands the active tool dialog to the screen-relative maximum size.
 
 ## Shared services
 
@@ -121,7 +117,9 @@ Placement modes:
 
 Instance Builder accepts requested codes, allocates deterministic row/column cells, searches exact standalone/family-instance names, and assembles resolved models unconstrained to the active assembly.
 
-Search and assembly are intentionally separated:
+v0.5.0 gives the request field a larger native multiline area and an explicit 32,767-character maximum length. The shared textarea helper checks the current enabled state before changing sensitivity, preventing input callbacks from unnecessarily re-enabling the focused multiline control during a paste.
+
+Search and assembly remain intentionally separated:
 
 ```text
 parse/allocate
@@ -130,15 +128,13 @@ parse/allocate
  -> if search completes, assemble resolved requests into planned cells
 ```
 
-This makes cancellation during search safe: no new Instance Builder components are added until source resolution finishes. Duplicate requested codes keep independent planned cells and missing codes leave holes instead of shifting later components.
+The allocation is fixed before source search. If a requested instance cannot be resolved, that request is reported as unresolved and its preallocated grid position remains empty. The assembler then continues with the next request at its own preallocated row/column, so later components do not shift into the missing position.
 
-Final results can be exported as UTF-8 CSV.
+Duplicate requested codes keep independent planned cells. Final results can be exported as UTF-8 CSV.
 
 ## UI state
 
 `AppContext` retains session-level UI state including source paths, source modes, filters, Inspection placement options, Instance Builder codes/allocation options, the Inspection X-Z plane choice, and the Instance Builder Unresolved-only review choice.
-
-The two `.res` files are intentionally mirrored. `package-release.ps1` verifies SHA-256 parity before creating the release package.
 
 ## Safety rules
 
@@ -150,3 +146,4 @@ The two `.res` files are intentionally mirrored. `package-release.ps1` verifies 
 - Inspection and Instance Builder do not erase models used by components they add.
 - Inspection Cancel stops between models; it does not roll back already-added components.
 - Instance Builder Cancel during source search adds no components because assembly is deferred until resolution completes.
+- Tool navigation is prevented during an active operation.
