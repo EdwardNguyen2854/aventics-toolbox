@@ -1,6 +1,6 @@
 (Dialog aventics_toolbox
   (Components
-    (Tab ToolTabs OverviewLayout WeakLayout AccuracyLayout InspectionLayout)
+    (Tab ToolTabs OverviewLayout WeakLayout AccuracyLayout InspectionLayout InstanceBuilderLayout)
     (Label FooterStatus)
     (PushButton FooterCancelButton)
     (PushButton CloseButton))
@@ -209,3 +209,59 @@
         (Grid (Rows 0) (Cols 0 1 0) InspBuildButton InspProgress InspProgressText)
         InspResultsTitle InspTable InspSummary InspDetails
         (Grid (Rows 0) (Cols 0 1) InspClearButton InspSpacer)))))
+
+(Layout InstanceBuilderLayout
+  (Components
+    (Label InstTitle) (Label InstDescription) (Label InstTargetTitle) (Label InstActiveAsm)
+    (Label InstSourceTitle) (Label InstFolderLabel) (InputPanel InstFolder) (PushButton InstBrowseButton)
+    (CheckButton InstRecursive) (CheckButton InstLatest) (Label InstFound)
+    (Label InstCodesTitle) (TextArea InstCodes)
+    (Label InstPlacementTitle) (Label InstColumnsLabel) (InputPanel InstColumns)
+    (Label InstGapLabel) (InputPanel InstGap) (PushButton InstPlanButton) (Label InstValidation)
+    (PushButton InstBuildButton) (ProgressBar InstProgress) (Label InstProgressText)
+    (Label InstResultsTitle) (Table InstTable) (Label InstSummary) (Label InstDetails)
+    (PushButton InstExportButton) (PushButton InstClearButton) (Label InstSpacer))
+  (Resources
+    (.Label "Instance Builder")
+    (InstTitle.Label "Instance builder")
+    (InstDescription.Label "Paste instance/code numbers, allocate row/column cells, find exact family-table instances, and add them unconstrained to the active assembly.")
+    (InstTargetTitle.Label "Target assembly") (InstActiveAsm.Label "No active assembly")
+    (InstSourceTitle.Label "Search source") (InstFolderLabel.Label "Folder")
+    (InstFolder.Columns 64) (InstBrowseButton.Label "Browse...")
+    (InstRecursive.Label "Include subfolders")
+    (InstLatest.Label "Latest Creo file version only") (InstLatest.Set True)
+    (InstFound.Label "Choose the folder containing Creo parts and assemblies to search.")
+    (InstCodesTitle.Label "Requested instance/code numbers - one per line; comma/semicolon also accepted")
+    (InstCodes.Rows 6) (InstCodes.Columns 64) (InstCodes.MinRows 4)
+    (InstCodes.AttachLeft True) (InstCodes.AttachRight True)
+    (InstPlacementTitle.Label "Allocation")
+    (InstColumnsLabel.Label "Columns") (InstColumns.Columns 5)
+    (InstGapLabel.Label "Gap (assembly units)") (InstGap.Columns 8)
+    (InstPlanButton.Label "Plan positions")
+    (InstValidation.Label "")
+    (InstBuildButton.Label "Find and add instances")
+    (InstProgress.MinInteger 0) (InstProgress.MaxInteger 1) (InstProgress.Integer 0)
+    (InstProgressText.Label "Ready")
+    (InstResultsTitle.Label "Plan / results")
+    (InstTable.RowNames "empty")
+    (InstTable.ColumnNames "Code" "Row" "Column" "Generic" "AddedModel" "Status" "FeatureId" "Details")
+    (InstTable.ColumnLabels "Requested code" "Row" "Column" "Generic" "Added model" "Status" "Feature ID" "Details")
+    (InstTable.ColumnWidths 22 7 7 20 22 11 10 42) (InstTable.VisibleRows 10)
+    (InstTable.ShowGrid True) (InstTable.AttachLeft True) (InstTable.AttachRight True)
+    (InstTable.AttachTop True) (InstTable.AttachBottom True)
+    (InstSummary.Label "No plan")
+    (InstDetails.Label "Plan positions first, then build. Missing codes keep their allocated cells empty.")
+    (InstExportButton.Label "Export CSV report")
+    (InstClearButton.Label "Clear") (InstSpacer.Label "")
+    (.Decorated False)
+    (.TopOffset 8) (.BottomOffset 8) (.LeftOffset 8) (.RightOffset 8)
+    (.Layout
+      (Grid (Rows 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0) (Cols 1)
+        InstTitle InstDescription InstTargetTitle InstActiveAsm InstSourceTitle
+        (Grid (Rows 0) (Cols 0 1 0) InstFolderLabel InstFolder InstBrowseButton)
+        (Grid (Rows 0) (Cols 0 0 1) InstRecursive InstLatest InstFound)
+        InstCodesTitle InstCodes InstPlacementTitle
+        (Grid (Rows 0) (Cols 0 0 0 0 0 1) InstColumnsLabel InstColumns InstGapLabel InstGap InstPlanButton InstValidation)
+        (Grid (Rows 0) (Cols 0 1 0) InstBuildButton InstProgress InstProgressText)
+        InstResultsTitle InstTable InstSummary InstDetails
+        (Grid (Rows 0) (Cols 0 0 1) InstExportButton InstClearButton InstSpacer)))))

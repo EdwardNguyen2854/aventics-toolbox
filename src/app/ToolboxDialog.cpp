@@ -12,6 +12,7 @@
 #include "common/UiUtils.h"
 #include "tools/AccuracyChecker.h"
 #include "tools/InspectionBuilder.h"
+#include "tools/InstanceBuilderUi.h"
 #include "tools/WeakDimensionChecker.h"
 
 #include <ProUIDialog.h>
@@ -447,6 +448,7 @@ void RefreshAll() {
     RefreshAccuracyTable();
     RefreshInspectionTable();
     RefreshActiveAssembly();
+    InstanceBuilderUi::Refresh(kDialog);
 }
 
 void UpdateControls() {
@@ -485,6 +487,7 @@ void UpdateControls() {
     UiUtils::EnableInput(kDialog, kInspFolder, !running);
     UiUtils::EnableInput(kDialog, kInspColumns, !running && autoArrange);
     UiUtils::EnableInput(kDialog, kInspGap, !running && autoArrange);
+    InstanceBuilderUi::UpdateControls(kDialog, running);
     if (!running) {
         RefreshWeakDetails();
         RefreshAccuracyDetails();
@@ -1010,6 +1013,7 @@ void SaveUiState() {
     double gap = context.inspectionGap;
     if (ParsePositiveInt(UiUtils::GetInput(kDialog, kInspColumns), columns)) context.inspectionColumns = columns;
     if (ParseNonNegativeDouble(UiUtils::GetInput(kDialog, kInspGap), gap)) context.inspectionGap = gap;
+    InstanceBuilderUi::SaveState(kDialog);
 }
 
 void OnClose(char*, char*, ProAppData) {
@@ -1034,8 +1038,9 @@ void RegisterInput(const char* name, ProUIAction action) {
 
 void SetupTabs() {
     wchar_t* labels[] = {const_cast<wchar_t*>(L"Overview"), const_cast<wchar_t*>(L"Weak Dimensions"),
-                         const_cast<wchar_t*>(L"Accuracy"), const_cast<wchar_t*>(L"Inspection")};
-    ProUITabLabelsSet(const_cast<char*>(kDialog), const_cast<char*>(kTabs), 4, labels);
+                         const_cast<wchar_t*>(L"Accuracy"), const_cast<wchar_t*>(L"Inspection"),
+                         const_cast<wchar_t*>(L"Instance Builder")};
+    ProUITabLabelsSet(const_cast<char*>(kDialog), const_cast<char*>(kTabs), 5, labels);
     ProUITabDecorate(const_cast<char*>(kDialog), const_cast<char*>(kTabs));
     ProUITabShow(const_cast<char*>(kDialog), const_cast<char*>(kTabs));
 }
@@ -1084,6 +1089,7 @@ void SetupCallbacks() {
     ProUITableSelectActionSet(const_cast<char*>(kDialog), const_cast<char*>(kWeakTable), OnWeakSelected, nullptr);
     ProUITableSelectActionSet(const_cast<char*>(kDialog), const_cast<char*>(kAccTable), OnAccSelected, nullptr);
     ProUITableSelectActionSet(const_cast<char*>(kDialog), const_cast<char*>(kInspTable), OnInspSelected, nullptr);
+    InstanceBuilderUi::SetupCallbacks(kDialog);
 }
 
 void RestoreState() {
@@ -1123,6 +1129,7 @@ void RestoreState() {
     UiUtils::SetLabel(kDialog, kAccFound, context.accuracyUseSelection
         ? L"Selection mode: choose models after starting the check."
         : L"Folder mode: choose a folder and options, then start the check.");
+    InstanceBuilderUi::RestoreState(kDialog);
 }
 }
 

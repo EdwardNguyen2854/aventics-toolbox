@@ -11,6 +11,8 @@ public:
     std::wstring weakFolder;
     std::wstring accuracyFolder;
     std::wstring inspectionFolder;
+    std::wstring instanceFolder;
+    std::wstring instanceCodes;
     std::wstring weakSearch;
     std::wstring accuracySearch;
     bool weakUseSelection = true;
@@ -34,14 +36,20 @@ public:
     bool inspectionRowsAlongX = false;
     int inspectionColumns = 5;
     double inspectionGap = 50.0;
+    bool instanceRecursive = false;
+    bool instanceLatest = true;
+    int instanceColumns = 5;
+    double instanceGap = 50.0;
 
     std::vector<WeakResult> weakResults;
     std::vector<AccuracyResult> accuracyResults;
     std::vector<InspectionResult> inspectionResults;
+    std::vector<InstanceBuildResult> instanceResults;
 
     std::vector<ModelDescriptor> weakPending;
     std::vector<ModelDescriptor> accuracyPending;
     std::vector<ModelDescriptor> inspectionPending;
+    std::vector<ModelDescriptor> instancePending;
     std::vector<ModelDescriptor> runAllPending;
 
     void ResetTransientOperations();

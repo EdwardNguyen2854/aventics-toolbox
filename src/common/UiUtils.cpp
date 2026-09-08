@@ -8,6 +8,7 @@
 #include <ProUtil.h>
 #include <ProUILabel.h>
 #include <ProUIInputpanel.h>
+#include <ProUITextarea.h>
 #include <ProUICheckbutton.h>
 #include <ProUIProgressbar.h>
 #include <ProUITable.h>
@@ -50,6 +51,19 @@ std::wstring GetInput(const char* dialog, const char* component) {
     return result;
 }
 
+void SetTextArea(const char* dialog, const char* component, const std::wstring& text) {
+    ProUITextareaValueSet(const_cast<char*>(dialog), const_cast<char*>(component), const_cast<wchar_t*>(text.c_str()));
+}
+
+std::wstring GetTextArea(const char* dialog, const char* component) {
+    wchar_t* value = nullptr;
+    if (ProUITextareaValueGet(const_cast<char*>(dialog), const_cast<char*>(component), &value) != PRO_TK_NO_ERROR || !value)
+        return L"";
+    std::wstring result(value);
+    ProWstringFree(value);
+    return result;
+}
+
 bool GetCheck(const char* dialog, const char* component, bool fallback) {
     ProBoolean state = fallback ? PRO_B_TRUE : PRO_B_FALSE;
     if (ProUICheckbuttonGetState(const_cast<char*>(dialog), const_cast<char*>(component), &state) != PRO_TK_NO_ERROR)
@@ -65,6 +79,11 @@ void SetCheck(const char* dialog, const char* component, bool checked) {
 void EnableInput(const char* dialog, const char* component, bool enabled) {
     if (enabled) ProUIInputpanelEnable(const_cast<char*>(dialog), const_cast<char*>(component));
     else ProUIInputpanelDisable(const_cast<char*>(dialog), const_cast<char*>(component));
+}
+
+void EnableTextArea(const char* dialog, const char* component, bool enabled) {
+    if (enabled) ProUITextareaEnable(const_cast<char*>(dialog), const_cast<char*>(component));
+    else ProUITextareaDisable(const_cast<char*>(dialog), const_cast<char*>(component));
 }
 
 void EnableCheck(const char* dialog, const char* component, bool enabled) {

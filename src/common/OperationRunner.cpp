@@ -4,7 +4,21 @@
 #include "config/AppConfig.h"
 
 #include <ProUtil.h>
+#include <ProUIPushbutton.h>
 #include <utility>
+
+namespace {
+constexpr char kToolboxDialog[] = "aventics_toolbox";
+constexpr char kCancelButton[] = "FooterCancelButton";
+
+void SyncCancelButton(const std::string& dialog, bool enabled) {
+    if (dialog != kToolboxDialog) return;
+    if (enabled)
+        ProUIPushbuttonEnable(const_cast<char*>(dialog.c_str()), const_cast<char*>(kCancelButton));
+    else
+        ProUIPushbuttonDisable(const_cast<char*>(dialog.c_str()), const_cast<char*>(kCancelButton));
+}
+}
 
 OperationRunner& OperationRunner::Instance() {
     static OperationRunner instance;
@@ -22,6 +36,7 @@ ProError OperationRunner::Start(const std::string& dialog, std::size_t total,
     progress_ = std::move(progress);
     finished_ = std::move(finished);
     running_ = true;
+    SyncCancelButton(dialog_, true);
 
     if (progress_) progress_(0, total_);
     if (total_ == 0) {
@@ -34,6 +49,7 @@ ProError OperationRunner::Start(const std::string& dialog, std::size_t total,
     ProError err = ProUITimerCreate(TimerAction, this, timerName, &timerId_);
     if (err != PRO_TK_NO_ERROR) {
         running_ = false;
+        SyncCancelButton(dialog_, false);
         return err;
     }
     err = ProUIDialogTimerStart(const_cast<char*>(dialog_.c_str()), timerId_, AppConfig::OperationTimerDelayMs, PRO_B_FALSE);
@@ -41,11 +57,15 @@ ProError OperationRunner::Start(const std::string& dialog, std::size_t total,
         ProUITimerDestroy(timerId_);
         timerId_ = nullptr;
         running_ = false;
+        SyncCancelButton(dialog_, false);
     }
     return err;
 }
 
-void OperationRunner::RequestCancel() { cancelRequested_ = true; }
+void OperationRunner::RequestCancel() {
+    cancelRequested_ = true;
+    SyncCancelButton(dialog_, false);
+}
 bool OperationRunner::IsRunning() const { return running_; }
 bool OperationRunner::IsCancelling() const { return running_ && cancelRequested_; }
 
@@ -83,6 +103,7 @@ void OperationRunner::Finish(bool cancelled) {
         timerId_ = nullptr;
     }
     running_ = false;
+    SyncCancelButton(dialog_, false);
     auto finished = std::move(finished_);
     processOne_ = nullptr;
     progress_ = nullptr;

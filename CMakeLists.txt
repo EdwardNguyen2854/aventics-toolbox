@@ -48,6 +48,8 @@ add_library(AventicsToolbox SHARED
     src/tools/accuracy/AccuracyChecker.cpp
     src/tools/inspection/PlacementEngine.cpp
     src/tools/inspection/InspectionBuilder.cpp
+    src/tools/instance_builder/InstanceBuilder.cpp
+    src/tools/instance_builder/InstanceBuilderUi.cpp
 )
 
 target_include_directories(AventicsToolbox PRIVATE

@@ -10,5 +10,6 @@ void AppContext::ResetTransientOperations() {
     weakPending.clear();
     accuracyPending.clear();
     inspectionPending.clear();
+    instancePending.clear();
     runAllPending.clear();
 }
