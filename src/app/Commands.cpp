@@ -14,7 +14,7 @@ int OpenToolbox(uiCmdCmdId, uiCmdValue*, void*) {
     const ProError err = ToolboxDialog::Show();
     if (err != PRO_TK_NO_ERROR) {
         Logger::Error(L"Toolbox dialog exited with " + ModelUtils::ErrorName(err));
-        UiUtils::MessageError("AVT.Error.Dialog");
+        UiUtils::MessageErrorWithToolkitCode("AVT.Error.Dialog", err);
     }
     return 0;
 }
