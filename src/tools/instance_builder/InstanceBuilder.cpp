@@ -89,6 +89,8 @@ InstanceBuilder::InstanceBuilder(ProAssembly targetAssembly,
     : targetAssembly_(targetAssembly), options_(options), requests_(std::move(requests)), resolutions_(requests_.size()) {
     if (options_.columns < 1) options_.columns = 1;
     if (options_.gap < 0.0) options_.gap = 0.0;
+    if (options_.columnGap < 0.0) options_.columnGap = options_.gap;
+    if (options_.rowGap < 0.0) options_.rowGap = options_.gap;
 }
 
 bool InstanceBuilder::ParseRequests(const std::wstring& text,
@@ -227,8 +229,11 @@ void InstanceBuilder::Finalize(std::vector<InstanceBuildResult>& results) {
         maxSecondarySpan = std::max(maxSecondarySpan,
             std::abs(outline[1][secondaryAxis] - outline[0][secondaryAxis]));
     }
-    const double xStep = maxXSpan + options_.gap;
-    const double secondaryStep = maxSecondarySpan + options_.gap;
+
+    const double xGap = options_.arrangeRowsAlongX ? options_.rowGap : options_.columnGap;
+    const double secondaryGap = options_.arrangeRowsAlongX ? options_.columnGap : options_.rowGap;
+    const double xStep = maxXSpan + xGap;
+    const double secondaryStep = maxSecondarySpan + secondaryGap;
 
     for (std::size_t i = 0; i < requests_.size(); ++i) {
         const auto& request = requests_[i];
