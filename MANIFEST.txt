@@ -13,8 +13,8 @@ docs/CHANGELOG.md
 docs/DEVELOPMENT.md
 docs/RELEASE_PLAN_0.3.0.md
 docs/RELEASE_PLAN_0.4.0.md
-docs/similar-cad-search-v1.md
 docs/typescript-ui-experiment.md
+docs/similar-cad-search-v1.md
 include/app/AppContext.h
 include/app/Commands.h
 include/app/ElectronPipeShim.h
@@ -40,9 +40,9 @@ include/tools/InspectionBuilder.h
 include/tools/InstanceBuilder.h
 include/tools/InstanceBuilderUi.h
 include/tools/PlacementEngine.h
+include/tools/WeakDimensionChecker.h
 include/tools/SimilarCadSearch.h
 include/tools/SimilarCadSearchHost.h
-include/tools/WeakDimensionChecker.h
 installer/install.ps1
 installer/uninstall.ps1
 make-protk.ps1
@@ -73,9 +73,9 @@ src/tools/inspection/InspectionBuilder.cpp
 src/tools/inspection/PlacementEngine.cpp
 src/tools/instance_builder/InstanceBuilder.cpp
 src/tools/instance_builder/InstanceBuilderUi.cpp
+src/tools/weak_dimension/WeakDimensionChecker.cpp
 src/tools/similar_cad/SimilarCadSearch.cpp
 src/tools/similar_cad/SimilarCadSearchHost.cpp
-src/tools/weak_dimension/WeakDimensionChecker.cpp
 text/aventics_messages.txt
 text/resource/aventics_toolbox.res
 text/resource/aventics_weak.res
@@ -93,9 +93,9 @@ ui/electron/main.ts
 ui/electron/preload.ts
 ui/index.html
 ui/package.json
-ui/similar-cad.css
 ui/src/app.ts
 ui/src/similar-cad.ts
 ui/src/webview.d.ts
+ui/similar-cad.css
 ui/styles.css
 ui/tsconfig.json
