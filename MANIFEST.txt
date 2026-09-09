@@ -16,6 +16,7 @@ docs/RELEASE_PLAN_0.4.0.md
 docs/typescript-ui-experiment.md
 include/app/AppContext.h
 include/app/Commands.h
+include/app/ElectronPipeShim.h
 include/app/ElectronToolbox.h
 include/app/ToolboxDialog.h
 include/app/Version.h
@@ -47,7 +48,9 @@ protk.dat
 protk.dat.example
 src/app/AppContext.cpp
 src/app/Commands.cpp
+src/app/ElectronPipeShim.cpp
 src/app/ElectronToolbox.cpp
+src/app/ElectronToolboxSafe.cpp
 src/app/ToolboxDialog.cpp
 src/app/ToolboxDialogV050.cpp
 src/app/main.cpp
@@ -86,5 +89,6 @@ ui/electron/preload.ts
 ui/index.html
 ui/package.json
 ui/src/app.ts
+ui/src/webview.d.ts
 ui/styles.css
 ui/tsconfig.json
