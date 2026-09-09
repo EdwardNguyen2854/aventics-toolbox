@@ -6,19 +6,18 @@ $ErrorActionPreference = "Stop"
 $PackageRoot = Split-Path -Parent $PSScriptRoot
 $BinSource = Join-Path $PackageRoot "bin"
 $DllSource = Join-Path $BinSource "aventics_toolbox.dll"
-$WebViewLoaderSource = Join-Path $BinSource "WebView2Loader.dll"
-$WebUiSource = Join-Path $BinSource "ui"
+$ElectronSource = Join-Path $BinSource "electron"
 $TextSource = Join-Path $PackageRoot "text"
 $VersionSource = Join-Path $PackageRoot "VERSION.txt"
 
 if (-not (Test-Path $DllSource)) {
     throw "Release DLL not found: $DllSource"
 }
-if (-not (Test-Path $WebViewLoaderSource)) {
-    throw "WebView2 loader not found: $WebViewLoaderSource"
+if (-not (Test-Path (Join-Path $ElectronSource "electron.exe"))) {
+    throw "Electron runtime not found: $ElectronSource"
 }
-if (-not (Test-Path (Join-Path $WebUiSource "index.html"))) {
-    throw "TypeScript UI runtime not found: $WebUiSource"
+if (-not (Test-Path (Join-Path $ElectronSource "app\package.json"))) {
+    throw "Electron application files not found: $(Join-Path $ElectronSource 'app')"
 }
 if (-not (Test-Path $TextSource)) {
     throw "Release text directory not found: $TextSource"
@@ -45,7 +44,7 @@ end
 Set-Content (Join-Path $Destination "protk.dat") $Protk -Encoding ascii
 
 Write-Host ""
-Write-Host "Aventics Toolbox TypeScript UI experiment installed to:"
+Write-Host "Aventics Toolbox Electron UI experiment installed to:"
 Write-Host "  $Destination"
 Write-Host ""
 Write-Host "Register this file in Creo -> Tools -> Auxiliary Applications:"
