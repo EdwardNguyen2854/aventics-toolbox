@@ -1,20 +1,28 @@
-# TypeScript / WebView2 UI experiment
+# TypeScript / Electron UI experiment
 
 Branch: `experiment/typescript-webview-ui`
 
-This branch keeps the Creo TOOLKIT backend in the existing C++ DLL and replaces the primary toolbox window with a TypeScript UI hosted in Microsoft Edge WebView2. If the web host cannot start synchronously (for example, the loader or UI assets are missing), the command falls back to the existing native Creo UI.
+This branch keeps the Creo TOOLKIT backend in the native C++ DLL and runs the TypeScript toolbox UI in a separate Electron process. WebView2 is no longer used.
 
 ## Architecture
 
 ```text
 Creo Parametric
   -> aventics_toolbox.dll (C++ / Creo TOOLKIT)
-      -> WebToolbox.cpp (Win32 + WebView2 host and typed message bridge)
-          -> ui/src/app.ts (TypeScript presentation)
+      -> ElectronToolbox.cpp
+          -> hidden Win32 message window (Creo-thread dispatch + operation timer)
+          -> Windows named-pipe server: \\.\pipe\aventics-toolbox-<CreoPID>
       -> existing tools/common C++ backend
+
+Electron
+  -> electron/main.ts (window + named-pipe client)
+  -> electron/preload.ts (context-isolated bridge)
+  -> src/app.ts (existing TypeScript renderer)
 ```
 
-The TypeScript UI never calls Creo directly. It sends small commands to the C++ bridge; all model loading, selection, checking, family-table work, placement, and assembly modification stays in native TOOLKIT code.
+The Electron renderer never calls Creo directly. All model loading, selection, checking, family-table work, placement, and assembly modification stays in native TOOLKIT code.
+
+The named-pipe reader runs on a worker thread, but every command that can touch Creo is posted to a hidden Win32 message window and therefore handled on the Creo thread that opened the toolbox command.
 
 ## What is migrated
 
@@ -25,80 +33,104 @@ The TypeScript UI never calls Creo directly. It sends small commands to the C++ 
 - Instance Builder multiline input, planning, build, unresolved filter, CSV export, and results
 - Full-screen/maximize action
 - Shared progress/status bar and cancellation
-- Native Creo selection and folder picker are still invoked by the C++ bridge when needed
-
-Long-running source lists are processed one item per Win32 timer tick on the Creo UI thread so the WebView remains responsive while TOOLKIT calls stay on the same thread that opened the command.
+- Native Creo selection and folder picker still run in C++
+- Multiple Creo sessions are isolated by PID-specific named pipes
+- Existing native Creo dialog remains the fallback if Electron cannot launch
 
 ## Prerequisites
 
-The normal Creo TOOLKIT build prerequisites still apply. The experiment additionally needs:
+The normal Creo TOOLKIT build prerequisites still apply. The Electron experiment additionally needs:
 
 1. Node.js LTS (`npm` on PATH).
-2. Microsoft WebView2 Runtime installed on the Creo workstation. Current Windows/Edge installations normally include it, but verify it if the window fails to initialize.
-3. Network access to `api.nuget.org` on the first build, unless a WebView2 SDK package is already supplied locally.
+2. Access to an npm registry that can provide the `electron` and `typescript` packages.
 
-The build pins `Microsoft.Web.WebView2` version `1.0.4191.47` and automatically downloads/extracts it into:
-
-```text
-external/Microsoft.Web.WebView2.1.0.4191.47/
-```
-
-`/external/` is git-ignored, so the SDK is cached locally and is not committed.
-
-If the workstation cannot access NuGet, manually extract a `Microsoft.Web.WebView2` NuGet package and either set:
-
-```powershell
-$env:WEBVIEW2_SDK_DIR = "C:\path\to\Microsoft.Web.WebView2.<version>"
-```
-
-or pass `-WebView2Sdk` to `build.ps1` / `build-and-unlock.ps1`.
-
-The package root must contain:
-
-```text
-build/native/include/WebView2.h
-```
+There is no WebView2 SDK, NuGet package, `WEBVIEW2_SDK_DIR`, or `WebView2Loader.dll` requirement.
 
 ## Build
 
-For the existing local Creo 9 build flow, no extra WebView2 setup should be needed:
+The normal local command builds/stages Electron first, then builds and unlocks the native DLL:
 
 ```powershell
 .\build-local.ps1
 ```
 
-On the first run, the script downloads the pinned WebView2 SDK. Later builds reuse the cached package under `external/`.
+To build only the native DLL while working on backend code:
 
-CMake builds `ui/src/app.ts` into `ui/dist/app.js`, then copies these runtime files beside the DLL:
+```powershell
+.\build-local.ps1 -SkipUi
+```
+
+To build/stage only Electron:
+
+```powershell
+.\build-ui.ps1
+```
+
+The first Electron build runs `npm install` if `ui\node_modules\electron\dist\electron.exe` is not present. If your corporate environment uses an internal npm registry or proxy, configure npm before running the build.
+
+The staged runtime layout is:
 
 ```text
 dist/x86e_win64/obj/
   aventics_toolbox.dll
-  WebView2Loader.dll
-  ui/
-    index.html
-    styles.css
-    app.js
+  electron/
+    electron.exe
+    resources/
+    locales/
+    ... Chromium/Electron runtime files ...
+    app/
+      package.json
+      index.html
+      electron-shim.js
+      styles.css
+      dist/app.js
+      dist-electron/main.js
+      dist-electron/preload.js
 ```
 
-The UI assets are intentionally external during this experiment so they can be edited and rebuilt quickly without embedding resources into the DLL.
+## UI-only development
+
+You can preview the UI without Creo:
+
+```powershell
+cd ui
+npm run dev
+```
+
+With no `--pipe` argument Electron starts in mock mode and renders a fake active assembly. This is intentionally lightweight; richer mock datasets can be added later.
+
+## Runtime behavior
+
+When the Creo command is clicked:
+
+1. The DLL creates a hidden message window and a named pipe such as `\\.\pipe\aventics-toolbox-23840`.
+2. If Electron is already connected, the DLL sends a focus command and the latest state.
+3. Otherwise the DLL launches the staged Electron runtime and passes `--pipe` and `--creo-pid`.
+4. Electron connects and sends `ready`.
+5. The DLL sends the current model/session/tool state as JSON.
+6. UI actions travel Electron IPC -> named pipe -> hidden Creo-thread message window -> existing C++ backend.
+
+State messages are newline-delimited JSON. The existing renderer command protocol is temporarily retained behind a small compatibility shim so the UI screens did not need a second rewrite during the transport migration.
 
 ## Test checklist
 
-1. Build and unlock the DLL.
-2. Start Creo and load the toolbox registration as usual.
-3. Open **Aventics Toolbox**. The window title should contain `TypeScript UI`.
-4. Confirm the Control Panel shows the current Creo model name.
-5. Test Weak Dimensions with Creo selection and folder mode.
-6. Test Accuracy with parts and assemblies.
-7. Open a disposable assembly and test Inspection Builder. Confirm the assembly is not auto-saved.
-8. Test Instance Builder with more than two pasted codes. Confirm missing instances leave their planned position empty and later requests keep their original row/column.
-9. Test Cancel during a multi-model run.
-10. Close and reopen the toolbox and confirm the C++ `AppContext` values are restored into the web UI.
+1. Run `npm run dev` under `ui` and confirm the Electron window opens in mock mode.
+2. Run `.\build-local.ps1` and confirm no WebView2/NuGet setup is requested.
+3. Start Creo and load the toolbox registration as usual.
+4. Open **Aventics Toolbox**. Confirm an Electron window opens and displays the current Creo model.
+5. Click the Creo command a second time and confirm the existing Electron window is focused instead of a duplicate being launched.
+6. Test Weak Dimensions with Creo selection and folder mode.
+7. Test Accuracy with parts and assemblies.
+8. Open a disposable assembly and test Inspection Builder. Confirm the assembly is not auto-saved.
+9. Test Instance Builder with more than two pasted codes. Confirm missing instances leave their planned position empty and later requests keep their original row/column.
+10. Test Cancel during a multi-model run.
+11. Close Electron and reopen it from the Creo command; confirm it reconnects and restores C++ state.
+12. Close Creo while Electron is open; confirm the Electron process closes from the native shutdown control (or at minimum reports the disconnected session).
+13. Open two Creo sessions and confirm each launches an Electron window connected to its own PID-specific pipe.
 
 ## Current experiment boundaries
 
-- The host is a normal Win32 top-level window created inside the Creo process. It is not yet embedded in a Creo NakedWindow.
-- The existing native Creo dialog remains compiled as a fallback and as a behavior reference during migration.
-- UI assets and the WebView2 loader are deployed beside the DLL rather than embedded.
-- This branch has not been validated on the target Creo workstation by CI; compile/runtime verification must be done on the Windows/Creo machine because the repository build depends on PTC TOOLKIT libraries.
+- The existing TypeScript renderer still uses the small WebView-style `postMessage` surface internally through `electron-shim.js`; the actual transport is Electron IPC/named pipes. This can be replaced with a typed `window.aventics` API after runtime validation.
+- The native Creo dialog remains compiled as a fallback and behavior reference.
+- Electron is staged from `node_modules` rather than packaged into a branded single executable yet.
+- The branch still requires compile/runtime verification on the target Windows/Creo workstation because the repository depends on PTC TOOLKIT libraries that are unavailable in generic CI environments.
