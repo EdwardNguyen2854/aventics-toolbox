@@ -52,6 +52,8 @@ add_library(AventicsToolbox SHARED
     src/tools/inspection/InspectionBuilder.cpp
     src/tools/instance_builder/InstanceBuilder.cpp
     src/tools/instance_builder/InstanceBuilderUi.cpp
+    src/tools/similar_cad/SimilarCadSearch.cpp
+    src/tools/similar_cad/SimilarCadSearchHost.cpp
 )
 
 target_include_directories(AventicsToolbox PRIVATE
@@ -94,6 +96,7 @@ target_link_libraries(AventicsToolbox PRIVATE
     ole32.lib
     uuid.lib
     ws2_32.lib
+    windowscodecs.lib
 )
 
 # This matches the protk_dll_NU configuration that successfully built the
