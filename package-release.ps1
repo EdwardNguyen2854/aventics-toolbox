@@ -55,12 +55,16 @@ Aventics Toolbox v0.5.2 - Electron UI experiment / team test package
 Teammate install location:
   C:\aventics\creo\AventicsToolbox
 
-INSTALL
-1. Extract the ZIP to a local folder.
-2. Run .\installer\install.ps1
-3. Register this generated file in Creo -> Tools -> Auxiliary Applications:
+INSTALL / REINSTALL
+1. Close Creo and Aventics Toolbox before installing or replacing a test build.
+2. Extract the ZIP to a local folder.
+3. Run .\installer\install.ps1
+4. Register this generated file in Creo -> Tools -> Auxiliary Applications:
    C:\aventics\creo\AventicsToolbox\protk.dat
-4. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
+5. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
+
+Reinstall replaces the installed bin and text folders but preserves the logs folder,
+so previous diagnostics remain available for comparison.
 
 TEAM TESTING / DIAGNOSTICS
 The installed package writes both native and Electron bridge diagnostics to:
