@@ -60,7 +60,9 @@ The current profile is deliberately still **8 views** until workstation inspecti
 7. `ISO_NE`
 8. `ISO_NW`
 
-The previous reset/rotate sequence has been replaced by normalized absolute `ProViewMatrixSet` transforms. Each view is oriented and repainted in one timer step, then rastered in a later timer step. This gives Creo time to process its window/message loop before capture.
+The previous reset/rotate sequence has been replaced by normalized absolute `ProViewMatrixSet` transforms. The `FRONT`, `RIGHT`, and `TOP` bases are aligned with the normalized matrix convention used by PTC's `UgGraphViewsSave` sample: identity for FRONT, the sample SIDE basis for RIGHT, and the sample TOP basis for TOP. Opposite views flip the corresponding axis. The active capture profile is reported as `ptc-axis-8-v2`.
+
+Each view is oriented and repainted in one timer step, then rastered in a later timer step. This gives Creo time to process its window/message loop before capture.
 
 The index schema/signature version is now `2`. Existing v1 indexes intentionally require a rebuild because the capture labels, descriptor data, and query engine changed.
 
