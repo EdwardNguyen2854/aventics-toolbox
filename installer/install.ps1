@@ -38,7 +38,7 @@ name AventicsToolbox
 startup dll
 exec_file $Dll
 text_dir $Destination
-allow_stop TRUE
+allow_stop FALSE
 fail_tol TRUE
 end
 "@
@@ -50,3 +50,5 @@ Write-Host "  $Destination"
 Write-Host ""
 Write-Host "Register this file in Creo -> Tools -> Auxiliary Applications:"
 Write-Host "  $(Join-Path $Destination 'protk.dat')"
+Write-Host ""
+Write-Host "Hot stop/unload is disabled for the WebView2 test build. Restart Creo to reload the DLL safely."
