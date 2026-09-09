@@ -3,6 +3,7 @@
 #include <ProObjects.h>
 
 #include "app/WebToolbox.h"
+#include "app/ToolboxDialog.h"
 #include "app/AppContext.h"
 #include "common/FolderPicker.h"
 #include "common/FolderScanner.h"
@@ -24,6 +25,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <iomanip>
 #include <memory>
@@ -39,6 +42,12 @@ namespace {
 constexpr wchar_t kWindowClass[] = L"AventicsToolboxWebViewWindow";
 constexpr wchar_t kWindowTitle[] = L"Aventics Toolbox — TypeScript UI";
 constexpr UINT_PTR kOperationTimer = 0x41565457; // AVTW
+constexpr UINT_PTR kStartupTimer = 0x41565453;   // AVTS
+constexpr UINT kExecuteCommandMessage = WM_APP + 0x241;
+constexpr UINT kFallbackMessage = WM_APP + 0x242;
+constexpr UINT kStartupTimeoutMs = 10000;
+constexpr std::size_t kResultBatchSize = 5;
+constexpr std::size_t kMaxQueuedCommands = 64;
 
 enum class WebOperation {
     None,
@@ -47,6 +56,13 @@ enum class WebOperation {
     Accuracy,
     Inspection,
     InstanceBuilder
+};
+
+enum class InitState {
+    NotStarted,
+    Initializing,
+    Ready,
+    Failed
 };
 
 std::wstring Utf8ToWide(const std::string& text) {
@@ -88,11 +104,8 @@ std::wstring UrlDecode(const std::wstring& encoded) {
                 continue;
             }
         }
-        if (c <= 0x7f) {
-            bytes.push_back(static_cast<char>(c));
-        } else {
-            bytes += WideToUtf8(std::wstring(1, c));
-        }
+        if (c <= 0x7f) bytes.push_back(static_cast<char>(c));
+        else bytes += WideToUtf8(std::wstring(1, c));
     }
     return Utf8ToWide(bytes);
 }
@@ -265,8 +278,16 @@ public:
         if (hwnd_) {
             ShowWindow(hwnd_, SW_SHOW);
             SetForegroundWindow(hwnd_);
-            SendState();
+            if (initState_ == InitState::Ready) SendState();
             return PRO_TK_NO_ERROR;
+        }
+
+        APTTYPE apartmentType = APTTYPE_CURRENT;
+        APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
+        const HRESULT apartmentResult = CoGetApartmentType(&apartmentType, &qualifier);
+        if (FAILED(apartmentResult) || (apartmentType != APTTYPE_STA && apartmentType != APTTYPE_MAINSTA)) {
+            Logger::Warn(L"WebView2 requires an STA COM apartment; using native Creo UI fallback.");
+            return PRO_TK_GENERAL_ERROR;
         }
 
         const auto moduleDir = ModuleDirectory();
@@ -275,24 +296,19 @@ public:
             Logger::Error(L"TypeScript UI asset was not found beside the TOOLKIT DLL: " + uiIndexPath_.wstring());
             return PRO_TK_GENERAL_ERROR;
         }
-
-        loaderModule_ = LoadLibraryW((moduleDir / L"WebView2Loader.dll").c_str());
-        if (!loaderModule_) loaderModule_ = LoadLibraryW(L"WebView2Loader.dll");
-        if (!loaderModule_) {
-            Logger::Error(L"WebView2Loader.dll was not found. Falling back to the native Creo UI is recommended.");
+        uiUri_ = FileUri(uiIndexPath_);
+        if (uiUri_.empty()) {
+            Logger::Error(L"Could not create a local URI for the TypeScript UI.");
             return PRO_TK_GENERAL_ERROR;
         }
 
-        createEnvironment_ = reinterpret_cast<CreateEnvironmentFn>(
-            GetProcAddress(loaderModule_, "CreateCoreWebView2EnvironmentWithOptions"));
-        if (!createEnvironment_) {
-            Logger::Error(L"WebView2Loader.dll does not expose CreateCoreWebView2EnvironmentWithOptions.");
-            FreeLibrary(loaderModule_);
-            loaderModule_ = nullptr;
-            return PRO_TK_GENERAL_ERROR;
-        }
-
+        if (!EnsureWebViewRuntime(moduleDir)) return PRO_TK_GENERAL_ERROR;
         if (!RegisterWindowClass()) return PRO_TK_GENERAL_ERROR;
+
+        const std::uint64_t generation = ++activeGeneration_;
+        initState_ = InitState::Initializing;
+        uiReady_ = false;
+        statusMessage_ = L"Starting TypeScript UI...";
 
         hwnd_ = CreateWindowExW(
             0,
@@ -309,83 +325,44 @@ public:
             nullptr);
         if (!hwnd_) {
             Logger::Error(L"Could not create the WebView2 toolbox host window.");
+            initState_ = InitState::NotStarted;
+            return PRO_TK_GENERAL_ERROR;
+        }
+
+        if (!SetTimer(hwnd_, kStartupTimer, kStartupTimeoutMs, nullptr)) {
+            Logger::Error(L"Could not create the WebView2 startup watchdog timer.");
+            DestroyWindow(hwnd_);
             return PRO_TK_GENERAL_ERROR;
         }
 
         ShowWindow(hwnd_, SW_SHOW);
         UpdateWindow(hwnd_);
-        statusMessage_ = L"Starting TypeScript UI...";
 
         const HRESULT hr = createEnvironment_(
             nullptr,
             LocalWebViewDataDirectory().c_str(),
             nullptr,
             Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-                [this](HRESULT result, ICoreWebView2Environment* environment) -> HRESULT {
-                    if (FAILED(result) || !environment || !hwnd_) {
-                        Logger::Error(L"Could not initialize the WebView2 environment.");
-                        if (hwnd_)
-                            MessageBoxW(hwnd_, L"WebView2 could not initialize. Check the WebView2 Runtime installation and toolbox log.",
-                                        L"Aventics Toolbox", MB_OK | MB_ICONERROR);
-                        return S_OK;
-                    }
-                    environment_ = environment;
-                    environment_->CreateCoreWebView2Controller(
-                        hwnd_,
-                        Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                            [this](HRESULT controllerResult, ICoreWebView2Controller* controller) -> HRESULT {
-                                if (FAILED(controllerResult) || !controller || !hwnd_) {
-                                    Logger::Error(L"Could not create the WebView2 controller.");
-                                    return S_OK;
-                                }
-                                controller_ = controller;
-                                controller_->get_CoreWebView2(&webView_);
-                                if (!webView_) {
-                                    Logger::Error(L"WebView2 controller did not return a browser instance.");
-                                    return S_OK;
-                                }
-
-                                ComPtr<ICoreWebView2Settings> settings;
-                                if (SUCCEEDED(webView_->get_Settings(&settings)) && settings) {
-                                    settings->put_IsWebMessageEnabled(TRUE);
-                                    settings->put_AreDefaultContextMenusEnabled(FALSE);
-                                    settings->put_IsStatusBarEnabled(FALSE);
-                                }
-
-                                webView_->add_WebMessageReceived(
-                                    Callback<ICoreWebView2WebMessageReceivedEventHandler>(
-                                        [this](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
-                                            LPWSTR raw = nullptr;
-                                            if (args && SUCCEEDED(args->TryGetWebMessageAsString(&raw)) && raw) {
-                                                HandleProtocol(raw);
-                                                CoTaskMemFree(raw);
-                                            }
-                                            return S_OK;
-                                        }).Get(),
-                                    &webMessageToken_);
-
-                                ResizeWebView();
-                                const std::wstring uri = FileUri(uiIndexPath_);
-                                if (uri.empty() || FAILED(webView_->Navigate(uri.c_str()))) {
-                                    Logger::Error(L"Could not navigate WebView2 to the TypeScript UI entry point.");
-                                }
-                                return S_OK;
-                            }).Get());
+                [this, generation](HRESULT result, ICoreWebView2Environment* environment) -> HRESULT {
+                    OnEnvironmentCreated(generation, result, environment);
                     return S_OK;
                 }).Get());
 
         if (FAILED(hr)) {
             Logger::Error(L"CreateCoreWebView2EnvironmentWithOptions failed before asynchronous initialization.");
+            KillTimer(hwnd_, kStartupTimer);
             DestroyWindow(hwnd_);
             return PRO_TK_GENERAL_ERROR;
         }
 
-        Logger::Info(L"Opened experimental TypeScript/WebView2 toolbox UI.");
+        Logger::Info(L"Opened hardened TypeScript/WebView2 toolbox host.");
         return PRO_TK_NO_ERROR;
     }
 
     void Shutdown() {
+        ++activeGeneration_;
         StopOperationWithoutCallbacks();
+        pendingCommands_.clear();
         if (hwnd_) DestroyWindow(hwnd_);
         webView_.Reset();
         controller_.Reset();
@@ -395,6 +372,8 @@ public:
             loaderModule_ = nullptr;
         }
         createEnvironment_ = nullptr;
+        getVersion_ = nullptr;
+        UnregisterWindowClass();
     }
 
 private:
@@ -403,6 +382,7 @@ private:
         PCWSTR,
         ICoreWebView2EnvironmentOptions*,
         ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler*);
+    using GetVersionFn = HRESULT(STDAPICALLTYPE*)(PCWSTR, LPWSTR*);
 
     WebToolboxHost() = default;
 
@@ -410,9 +390,39 @@ private:
         return Instance().HandleWindowMessage(hwnd, message, wParam, lParam);
     }
 
+    bool EnsureWebViewRuntime(const std::filesystem::path& moduleDir) {
+        if (!loaderModule_) {
+            loaderModule_ = LoadLibraryW((moduleDir / L"WebView2Loader.dll").c_str());
+            if (!loaderModule_) loaderModule_ = LoadLibraryW(L"WebView2Loader.dll");
+        }
+        if (!loaderModule_) {
+            Logger::Error(L"WebView2Loader.dll was not found.");
+            return false;
+        }
+
+        createEnvironment_ = reinterpret_cast<CreateEnvironmentFn>(
+            GetProcAddress(loaderModule_, "CreateCoreWebView2EnvironmentWithOptions"));
+        getVersion_ = reinterpret_cast<GetVersionFn>(
+            GetProcAddress(loaderModule_, "GetAvailableCoreWebView2BrowserVersionString"));
+        if (!createEnvironment_ || !getVersion_) {
+            Logger::Error(L"WebView2Loader.dll is missing required exports.");
+            return false;
+        }
+
+        LPWSTR version = nullptr;
+        const HRESULT versionResult = getVersion_(nullptr, &version);
+        if (FAILED(versionResult) || !version) {
+            Logger::Warn(L"Microsoft Edge WebView2 Runtime is not available; using native Creo UI fallback.");
+            if (version) CoTaskMemFree(version);
+            return false;
+        }
+        Logger::Info(L"WebView2 Runtime detected: " + std::wstring(version));
+        CoTaskMemFree(version);
+        return true;
+    }
+
     bool RegisterWindowClass() {
-        static bool registered = false;
-        if (registered) return true;
+        if (classRegistered_) return true;
         WNDCLASSEXW windowClass{};
         windowClass.cbSize = sizeof(windowClass);
         windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -422,12 +432,164 @@ private:
         windowClass.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
         windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
         windowClass.lpszClassName = kWindowClass;
-        if (!RegisterClassExW(&windowClass) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
-            Logger::Error(L"Could not register the WebView2 toolbox host window class.");
+        if (RegisterClassExW(&windowClass)) {
+            classRegistered_ = true;
+            return true;
+        }
+
+        if (GetLastError() == ERROR_CLASS_ALREADY_EXISTS) {
+            WNDCLASSEXW existing{};
+            existing.cbSize = sizeof(existing);
+            if (GetClassInfoExW(CurrentModule(), kWindowClass, &existing) && existing.lpfnWndProc == WindowProc) {
+                classRegistered_ = true;
+                return true;
+            }
+            Logger::Error(L"A stale Aventics WebView window class exists from another module instance; refusing to reuse it.");
             return false;
         }
-        registered = true;
-        return true;
+
+        Logger::Error(L"Could not register the WebView2 toolbox host window class.");
+        return false;
+    }
+
+    void UnregisterWindowClass() {
+        if (!classRegistered_) return;
+        if (hwnd_) return;
+        if (!UnregisterClassW(kWindowClass, CurrentModule())) {
+            Logger::Warn(L"Could not unregister the Aventics WebView window class during shutdown.");
+            return;
+        }
+        classRegistered_ = false;
+    }
+
+    bool IsGenerationActive(std::uint64_t generation) const {
+        return hwnd_ != nullptr && generation == activeGeneration_;
+    }
+
+    void OnEnvironmentCreated(std::uint64_t generation, HRESULT result, ICoreWebView2Environment* environment) {
+        if (!IsGenerationActive(generation)) return;
+        if (FAILED(result) || !environment) {
+            ScheduleFallback(generation, L"WebView2 environment initialization failed.");
+            return;
+        }
+        environment_ = environment;
+        const HRESULT controllerStart = environment_->CreateCoreWebView2Controller(
+            hwnd_,
+            Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                [this, generation](HRESULT controllerResult, ICoreWebView2Controller* controller) -> HRESULT {
+                    OnControllerCreated(generation, controllerResult, controller);
+                    return S_OK;
+                }).Get());
+        if (FAILED(controllerStart)) {
+            ScheduleFallback(generation, L"WebView2 controller initialization could not be started.");
+        }
+    }
+
+    void OnControllerCreated(std::uint64_t generation, HRESULT result, ICoreWebView2Controller* controller) {
+        if (!IsGenerationActive(generation)) return;
+        if (FAILED(result) || !controller) {
+            ScheduleFallback(generation, L"WebView2 controller initialization failed.");
+            return;
+        }
+        controller_ = controller;
+        controller_->get_CoreWebView2(&webView_);
+        if (!webView_) {
+            ScheduleFallback(generation, L"WebView2 controller did not return a browser instance.");
+            return;
+        }
+
+        ComPtr<ICoreWebView2Settings> settings;
+        if (SUCCEEDED(webView_->get_Settings(&settings)) && settings) {
+            settings->put_IsWebMessageEnabled(TRUE);
+            settings->put_AreDefaultContextMenusEnabled(FALSE);
+            settings->put_IsStatusBarEnabled(FALSE);
+            settings->put_AreDevToolsEnabled(FALSE);
+        }
+
+        webView_->add_NavigationStarting(
+            Callback<ICoreWebView2NavigationStartingEventHandler>(
+                [this, generation](ICoreWebView2*, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
+                    if (!IsGenerationActive(generation) || !args) return S_OK;
+                    LPWSTR uri = nullptr;
+                    if (SUCCEEDED(args->get_Uri(&uri)) && uri) {
+                        const bool allowed = uiUri_ == uri;
+                        if (!allowed) {
+                            args->put_Cancel(TRUE);
+                            Logger::Warn(L"Blocked WebView navigation outside the Aventics local UI: " + std::wstring(uri));
+                        }
+                        CoTaskMemFree(uri);
+                    }
+                    return S_OK;
+                }).Get(),
+            &navigationStartingToken_);
+
+        webView_->add_NewWindowRequested(
+            Callback<ICoreWebView2NewWindowRequestedEventHandler>(
+                [](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
+                    if (args) args->put_Handled(TRUE);
+                    return S_OK;
+                }).Get(),
+            &newWindowToken_);
+
+        webView_->add_ProcessFailed(
+            Callback<ICoreWebView2ProcessFailedEventHandler>(
+                [this, generation](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) -> HRESULT {
+                    if (IsGenerationActive(generation))
+                        ScheduleFallback(generation, L"The WebView2 browser process failed.");
+                    return S_OK;
+                }).Get(),
+            &processFailedToken_);
+
+        webView_->add_WebMessageReceived(
+            Callback<ICoreWebView2WebMessageReceivedEventHandler>(
+                [this, generation](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+                    if (!IsGenerationActive(generation) || !args) return S_OK;
+
+                    LPWSTR source = nullptr;
+                    const HRESULT sourceResult = args->get_Source(&source);
+                    const bool trusted = SUCCEEDED(sourceResult) && source && uiUri_ == source;
+                    if (source) CoTaskMemFree(source);
+                    if (!trusted) {
+                        Logger::Warn(L"Ignored a WebView message from an untrusted document.");
+                        return S_OK;
+                    }
+
+                    LPWSTR raw = nullptr;
+                    if (SUCCEEDED(args->TryGetWebMessageAsString(&raw)) && raw) {
+                        QueueProtocol(raw);
+                        CoTaskMemFree(raw);
+                    }
+                    return S_OK;
+                }).Get(),
+            &webMessageToken_);
+
+        ResizeWebView();
+        if (FAILED(webView_->Navigate(uiUri_.c_str()))) {
+            ScheduleFallback(generation, L"Could not navigate WebView2 to the TypeScript UI entry point.");
+        }
+    }
+
+    void ScheduleFallback(std::uint64_t generation, const std::wstring& reason) {
+        if (!IsGenerationActive(generation)) return;
+        if (initState_ == InitState::Failed) return;
+        Logger::Error(reason);
+        initState_ = InitState::Failed;
+        statusMessage_ = reason + L" Opening native Creo UI...";
+        StopOperationWithoutCallbacks();
+        KillTimer(hwnd_, kStartupTimer);
+        if (!PostMessageW(hwnd_, kFallbackMessage, static_cast<WPARAM>(generation), 0)) {
+            Logger::Error(L"Could not queue native UI fallback after WebView2 failure.");
+        }
+    }
+
+    void LaunchNativeFallback(std::uint64_t generation) {
+        if (!IsGenerationActive(generation)) return;
+        Logger::Warn(L"Falling back to the native Creo toolbox UI after WebView2 failure.");
+        HWND closing = hwnd_;
+        if (closing) DestroyWindow(closing);
+        const ProError error = ToolboxDialog::Show();
+        if (error != PRO_TK_NO_ERROR)
+            Logger::Error(L"Native toolbox fallback exited with " + ModelUtils::ErrorName(error));
     }
 
     LRESULT HandleWindowMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -441,7 +603,19 @@ private:
                 TickOperation();
                 return 0;
             }
+            if (wParam == kStartupTimer) {
+                KillTimer(hwnd, kStartupTimer);
+                if (initState_ != InitState::Ready)
+                    ScheduleFallback(activeGeneration_, L"TypeScript UI did not become ready before the startup timeout.");
+                return 0;
+            }
             break;
+        case kExecuteCommandMessage:
+            ExecuteNextQueuedCommand();
+            return 0;
+        case kFallbackMessage:
+            LaunchNativeFallback(static_cast<std::uint64_t>(wParam));
+            return 0;
         case WM_GETMINMAXINFO: {
             auto* info = reinterpret_cast<MINMAXINFO*>(lParam);
             info->ptMinTrackSize.x = 860;
@@ -453,12 +627,18 @@ private:
             return 0;
         case WM_DESTROY:
             if (hwnd == hwnd_) {
+                KillTimer(hwnd, kOperationTimer);
+                KillTimer(hwnd, kStartupTimer);
                 StopOperationWithoutCallbacks();
+                pendingCommands_.clear();
                 if (controller_) controller_->Close();
                 webView_.Reset();
                 controller_.Reset();
                 environment_.Reset();
                 hwnd_ = nullptr;
+                uiReady_ = false;
+                initState_ = InitState::NotStarted;
+                ++activeGeneration_;
             }
             return 0;
         default:
@@ -489,16 +669,50 @@ private:
         SetForegroundWindow(hwnd_);
     }
 
-    void HandleProtocol(const std::wstring& rawMessage) {
+    void QueueProtocol(const std::wstring& rawMessage) {
         const auto fields = SplitProtocol(rawMessage);
+        if (fields.empty() || !hwnd_) return;
+        if (pendingCommands_.size() >= kMaxQueuedCommands) {
+            Logger::Warn(L"Dropped WebView command because the native command queue is full.");
+            return;
+        }
+        pendingCommands_.push_back(fields);
+        if (!PostMessageW(hwnd_, kExecuteCommandMessage, 0, 0)) {
+            pendingCommands_.pop_back();
+            Logger::Error(L"Could not defer WebView command to the native host message loop.");
+        }
+    }
+
+    void ExecuteNextQueuedCommand() {
+        if (pendingCommands_.empty()) return;
+        auto fields = std::move(pendingCommands_.front());
+        pendingCommands_.pop_front();
+        ExecuteProtocol(fields);
+        if (!pendingCommands_.empty() && hwnd_)
+            PostMessageW(hwnd_, kExecuteCommandMessage, 0, 0);
+    }
+
+    void ExecuteProtocol(const std::vector<std::wstring>& fields) {
         if (fields.empty()) return;
         const std::wstring& action = fields[0];
 
-        if (action == L"ready" || action == L"refresh") {
+        if (action == L"ready") {
+            if (initState_ == InitState::Initializing) {
+                initState_ = InitState::Ready;
+                uiReady_ = true;
+                if (hwnd_) KillTimer(hwnd_, kStartupTimer);
+                statusMessage_ = L"Ready";
+                Logger::Info(L"TypeScript UI ready handshake received.");
+            }
+            SendState();
+            return;
+        }
+        if (action == L"refresh") {
             statusMessage_ = busy_ ? statusMessage_ : L"Ready";
             SendState();
             return;
         }
+        if (initState_ != InitState::Ready) return;
         if (action == L"toggleMaximize") {
             ToggleMaximize();
             return;
@@ -548,6 +762,7 @@ private:
             return;
         }
 
+        Logger::Warn(L"Unknown TypeScript UI action: " + action);
         statusMessage_ = L"Unknown UI action: " + action;
         SendState();
     }
@@ -559,6 +774,11 @@ private:
         else if (tool == L"accuracy") title = L"Select folder for Accuracy check";
         else if (tool == L"inspection") title = L"Select folder for Inspection Assembly Builder";
         else if (tool == L"instances") title = L"Select folder containing Creo generics for Instance Builder";
+        else {
+            statusMessage_ = L"Unknown folder target.";
+            SendState();
+            return;
+        }
 
         std::wstring selected;
         HideForCreoInteraction();
@@ -574,7 +794,7 @@ private:
         if (tool == L"weak") context.weakFolder = selected;
         else if (tool == L"accuracy") context.accuracyFolder = selected;
         else if (tool == L"inspection") context.inspectionFolder = selected;
-        else if (tool == L"instances") context.instanceFolder = selected;
+        else context.instanceFolder = selected;
         statusMessage_ = L"Folder selected.";
         SendState();
     }
@@ -586,6 +806,7 @@ private:
         else if (tool == L"accuracy") context.accuracyResults.clear();
         else if (tool == L"inspection") context.inspectionResults.clear();
         else if (tool == L"instances") context.instanceResults.clear();
+        else return;
         statusMessage_ = L"Results cleared.";
         SendState();
     }
@@ -615,7 +836,6 @@ private:
     }
 
     void RunWeak(const std::vector<std::wstring>& fields) {
-        // runWeak | useSelection | folder | recursive | latest
         if (busy_ || fields.size() < 5) return;
         auto& context = AppContext::Instance();
         context.weakUseSelection = ParseBool(fields[1]);
@@ -656,7 +876,6 @@ private:
     }
 
     void RunAccuracy(const std::vector<std::wstring>& fields) {
-        // runAccuracy | useSelection | folder | recursive | latest | parts | assemblies
         if (busy_ || fields.size() < 7) return;
         auto& context = AppContext::Instance();
         context.accuracyUseSelection = ParseBool(fields[1]);
@@ -704,8 +923,6 @@ private:
     }
 
     void RunInspection(const std::vector<std::wstring>& fields) {
-        // runInspection | folder | recursive | latest | parts | assemblies | family | generic | step |
-        // autoArrange | rowsAlongX | useZ | columns | gap
         if (busy_ || fields.size() < 14) return;
         ProMdl current = nullptr;
         if (ModelUtils::CurrentModel(&current) != PRO_TK_NO_ERROR || !ModelUtils::IsAssembly(current)) {
@@ -714,6 +931,7 @@ private:
             return;
         }
 
+        auto& context = AppContext::Instance();
         InspectionOptions options;
         options.includeSubfolders = ParseBool(fields[2]);
         options.latestCreoVersionOnly = ParseBool(fields[3]);
@@ -725,15 +943,19 @@ private:
         options.autoArrange = ParseBool(fields[9]);
         options.arrangeRowsAlongX = ParseBool(fields[10]);
         options.useZAxisForRows = ParseBool(fields[11]);
-        if (!ParsePositiveInt(fields[12], options.columns)) {
-            statusMessage_ = L"Columns must be a whole number of 1 or greater.";
-            SendState();
-            return;
-        }
-        if (!ParseNonNegativeDouble(fields[13], options.gap)) {
-            statusMessage_ = L"Gap must be a finite number of 0 or greater.";
-            SendState();
-            return;
+        options.columns = context.inspectionColumns;
+        options.gap = context.inspectionGap;
+        if (options.autoArrange) {
+            if (!ParsePositiveInt(fields[12], options.columns)) {
+                statusMessage_ = L"Columns must be a whole number of 1 or greater.";
+                SendState();
+                return;
+            }
+            if (!ParseNonNegativeDouble(fields[13], options.gap)) {
+                statusMessage_ = L"Gap must be a finite number of 0 or greater.";
+                SendState();
+                return;
+            }
         }
         if (!options.includeParts && !options.includeAssemblies && !options.includeStep) {
             statusMessage_ = L"Select at least one source type: Creo parts, assemblies, or STEP.";
@@ -741,7 +963,6 @@ private:
             return;
         }
 
-        auto& context = AppContext::Instance();
         context.inspectionFolder = fields[1];
         context.inspectionRecursive = options.includeSubfolders;
         context.inspectionLatest = options.latestCreoVersionOnly;
@@ -770,7 +991,6 @@ private:
     }
 
     void PlanInstances(const std::vector<std::wstring>& fields) {
-        // planInstances | codes | columns
         if (busy_ || fields.size() < 3) return;
         int columns = 0;
         if (!ParsePositiveInt(fields[2], columns)) {
@@ -805,7 +1025,6 @@ private:
     }
 
     void RunInstances(const std::vector<std::wstring>& fields) {
-        // runInstances | folder | recursive | latest | codes | columns | gap
         if (busy_ || fields.size() < 7) return;
         ProMdl current = nullptr;
         if (ModelUtils::CurrentModel(&current) != PRO_TK_NO_ERROR || !ModelUtils::IsAssembly(current)) {
@@ -882,9 +1101,13 @@ private:
         ScheduleTick();
     }
 
-    void ScheduleTick() {
-        if (!busy_ || !hwnd_) return;
-        SetTimer(hwnd_, kOperationTimer, static_cast<UINT>(std::max(1, AppConfig::OperationTimerDelayMs)), nullptr);
+    bool ScheduleTick() {
+        if (!busy_ || !hwnd_) return false;
+        if (!SetTimer(hwnd_, kOperationTimer, static_cast<UINT>(std::max(1, AppConfig::OperationTimerDelayMs)), nullptr)) {
+            FailOperation(L"Could not schedule the next native operation step. Partial results were kept.");
+            return false;
+        }
+        return true;
     }
 
     void TickOperation() {
@@ -930,10 +1153,15 @@ private:
             statusMessage_ += L" | " + std::to_wstring(instanceBuilder_->ResolvedCount()) + L" / " +
                               std::to_wstring(context.instanceResults.size()) + L" codes resolved";
         }
-        SendState();
 
-        if (operationIndex_ >= sources_.size()) FinishOperation(false);
-        else ScheduleTick();
+        if (operationIndex_ >= sources_.size()) {
+            FinishOperation(false);
+            return;
+        }
+
+        if (operationIndex_ % kResultBatchSize == 0) SendState();
+        else SendProgress();
+        ScheduleTick();
     }
 
     void ProcessRunAllSource(ModelDescriptor source) {
@@ -1017,9 +1245,9 @@ private:
 
         auto& context = AppContext::Instance();
         const WebOperation completed = operation_;
-        if (completed == WebOperation::InstanceBuilder && !cancelled && instanceBuilder_) {
+        if (completed == WebOperation::InstanceBuilder && !cancelled && instanceBuilder_)
             instanceBuilder_->Finalize(context.instanceResults);
-        }
+
         inspectionBuilder_.reset();
         instanceBuilder_.reset();
         sources_.clear();
@@ -1061,6 +1289,20 @@ private:
         SendState();
     }
 
+    void FailOperation(const std::wstring& message) {
+        if (hwnd_) KillTimer(hwnd_, kOperationTimer);
+        inspectionBuilder_.reset();
+        instanceBuilder_.reset();
+        sources_.clear();
+        busy_ = false;
+        operation_ = WebOperation::None;
+        operationIndex_ = 0;
+        cleanupLoadedModels_ = false;
+        statusMessage_ = message;
+        Logger::Error(message);
+        SendState();
+    }
+
     void StopOperationWithoutCallbacks() {
         if (hwnd_) KillTimer(hwnd_, kOperationTimer);
         sources_.clear();
@@ -1070,6 +1312,16 @@ private:
         operation_ = WebOperation::None;
         operationIndex_ = 0;
         cleanupLoadedModels_ = false;
+    }
+
+    std::string BuildProgressJson() const {
+        std::ostringstream out;
+        out << "{\"type\":\"progress\"";
+        out << ",\"busy\":" << JsonBool(busy_);
+        out << ",\"operation\":" << JsonString(OperationName(operation_));
+        out << ",\"progress\":{\"done\":" << operationIndex_ << ",\"total\":" << sources_.size()
+            << ",\"message\":" << JsonString(statusMessage_) << "}}";
+        return out.str();
     }
 
     std::string BuildStateJson() const {
@@ -1194,8 +1446,14 @@ private:
         return out.str();
     }
 
+    void SendProgress() const {
+        if (!webView_ || !uiReady_) return;
+        const std::wstring json = Utf8ToWide(BuildProgressJson());
+        webView_->PostWebMessageAsString(json.c_str());
+    }
+
     void SendState() const {
-        if (!webView_) return;
+        if (!webView_ || !uiReady_) return;
         const std::wstring json = Utf8ToWide(BuildStateJson());
         webView_->PostWebMessageAsString(json.c_str());
     }
@@ -1203,12 +1461,23 @@ private:
     HWND hwnd_ = nullptr;
     HMODULE loaderModule_ = nullptr;
     CreateEnvironmentFn createEnvironment_ = nullptr;
+    GetVersionFn getVersion_ = nullptr;
     std::filesystem::path uiIndexPath_;
+    std::wstring uiUri_;
 
     ComPtr<ICoreWebView2Environment> environment_;
     ComPtr<ICoreWebView2Controller> controller_;
     ComPtr<ICoreWebView2> webView_;
     EventRegistrationToken webMessageToken_{};
+    EventRegistrationToken navigationStartingToken_{};
+    EventRegistrationToken newWindowToken_{};
+    EventRegistrationToken processFailedToken_{};
+
+    bool classRegistered_ = false;
+    bool uiReady_ = false;
+    InitState initState_ = InitState::NotStarted;
+    std::uint64_t activeGeneration_ = 0;
+    std::deque<std::vector<std::wstring>> pendingCommands_;
 
     bool busy_ = false;
     bool cleanupLoadedModels_ = false;
