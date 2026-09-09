@@ -50,6 +50,7 @@ Copy-Item (Join-Path $RuntimeSource "*") $RuntimeDestination -Recurse -Force
 New-Item -ItemType Directory -Path $AppDestination -Force | Out-Null
 Copy-Item (Join-Path $UiRoot "package.json") $AppDestination -Force
 Copy-Item (Join-Path $UiRoot "index.html") $AppDestination -Force
+Copy-Item (Join-Path $UiRoot "electron-shim.js") $AppDestination -Force
 Copy-Item (Join-Path $UiRoot "styles.css") $AppDestination -Force
 Copy-Item (Join-Path $UiRoot "dist") $AppDestination -Recurse -Force
 Copy-Item (Join-Path $UiRoot "dist-electron") $AppDestination -Recurse -Force
