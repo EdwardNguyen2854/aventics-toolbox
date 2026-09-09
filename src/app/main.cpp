@@ -1,5 +1,8 @@
 #include <ProToolkit.h>
 #include "app/Commands.h"
+#ifdef AVENTICS_TYPESCRIPT_UI
+#include "app/WebToolbox.h"
+#endif
 #include "common/Logger.h"
 
 extern "C" int user_initialize(int argc, char* argv[], char* proe_vsn, char* build) {
@@ -14,5 +17,8 @@ extern "C" int user_initialize(int argc, char* argv[], char* proe_vsn, char* bui
 }
 
 extern "C" void user_terminate() {
+#ifdef AVENTICS_TYPESCRIPT_UI
+    WebToolbox::Shutdown();
+#endif
     Logger::Shutdown();
 }
