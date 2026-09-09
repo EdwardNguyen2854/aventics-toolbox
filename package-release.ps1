@@ -50,13 +50,14 @@ Copy-Item (Join-Path $Root "VERSION.txt") $ReleaseRoot -Force
 Copy-Item (Join-Path $Root "installer") (Join-Path $ReleaseRoot "installer") -Recurse -Force
 
 $Readme = @"
-Aventics Toolbox v0.5.2 - TypeScript UI experiment
+Aventics Toolbox v0.5.2 - TypeScript UI hardened experiment
 
 1. Ensure Microsoft Edge WebView2 Runtime is installed.
 2. Run .\installer\install.ps1
 3. Register the generated protk.dat in Creo -> Tools -> Auxiliary Applications.
 4. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
-5. The TypeScript/WebView2 UI opens first. The existing native Creo UI remains a fallback.
+5. The TypeScript/WebView2 UI opens first. Startup/runtime WebView failure falls back to the existing native Creo UI.
+6. Hot stop/unload is disabled for this WebView2 test build. Restart Creo after replacing/rebuilding the DLL.
 
 The release DLL must already be unlocked by the developer before packaging.
 "@
