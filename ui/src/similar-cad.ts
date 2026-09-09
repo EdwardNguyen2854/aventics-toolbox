@@ -1,4 +1,5 @@
 const scBridge = (window as any).aventicsSimilarCad;
+const mainBridge = (window as any).aventicsBridge;
 
 const scDefault = {
   type: "similarState",
@@ -126,7 +127,7 @@ function pageHtml() {
   return `
     <div class="page-header">
       <div><h1 class="page-title">Similar CAD Search</h1><p class="page-subtitle">Search a local Creo part library using a screenshot, render, or product image.</p></div>
-      <div class="header-actions"><button class="btn ghost small" data-sc-action="refresh" ${disabled(scState.busy)}>Refresh</button><button class="btn small" data-action="maximize">Full screen</button></div>
+      <div class="header-actions"><button class="btn ghost small" data-sc-action="refresh" ${disabled(scState.busy)}>Refresh</button><button class="btn small" data-sc-action="maximize">Full screen</button></div>
     </div>
 
     <div class="sc-grid">
@@ -182,6 +183,7 @@ function bindPage() {
       const action = button.dataset.scAction;
       if (action === "refresh") send("refresh");
       if (action === "cancel") send("cancel");
+      if (action === "maximize") mainBridge?.postMessage?.("toggleMaximize");
       if (action === "chooseImage") {
         const selected = await scBridge?.chooseImage?.();
         if (selected) { scDraft.queryImage = selected; render(true); }
