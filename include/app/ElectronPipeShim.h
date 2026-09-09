@@ -16,7 +16,3 @@ BOOL WINAPI AvtElectronWriteFile(HANDLE file,
                                  DWORD bytesToWrite,
                                  LPDWORD bytesWritten,
                                  LPOVERLAPPED overlapped);
-
-#define ConnectNamedPipe AvtElectronConnectNamedPipe
-#define ReadFile AvtElectronReadFile
-#define WriteFile AvtElectronWriteFile
