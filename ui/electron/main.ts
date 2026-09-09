@@ -348,7 +348,6 @@ app.on("window-all-closed", () => {
   similarReconnectTimer = null;
   if (pipe) pipe.destroy();
   pipe = null;
-  if (similarPipe) pipe = null;
   if (similarPipe) similarPipe.destroy();
   similarPipe = null;
   app.quit();
