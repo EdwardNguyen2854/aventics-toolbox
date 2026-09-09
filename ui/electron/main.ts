@@ -62,7 +62,7 @@ function mockSimilarState(message = "Similar CAD Search mock mode") {
     settings: { folder: "", queryImage: "", recursive: false, latest: true, topK: 20, autoCrop: true },
     index: {
       models: 0, views: 0, viewCountPerModel: 8, cachePath: "",
-      engine: "hybrid-shape-v2", captureProfile: "canonical-matrix-8-v2"
+      engine: "hybrid-shape-v2", captureProfile: "ptc-axis-8-v2"
     },
     query: { ready: false, processedPath: "", aspectRatio: 0, fillRatio: 0, autoCrop: true },
     results: [],
