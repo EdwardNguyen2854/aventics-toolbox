@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-const root = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(.:\/)/, "$1"));
+const root = path.dirname(fileURLToPath(import.meta.url));
 const source = path.join(root, "src", "app.ts");
 const outputDir = path.join(root, "dist");
 const output = path.join(outputDir, "app.js");
