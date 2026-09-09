@@ -30,7 +30,8 @@ add_library(AventicsToolbox SHARED
     src/app/main.cpp
     src/app/Commands.cpp
     src/app/ToolboxDialogV050.cpp
-    src/app/ElectronToolbox.cpp
+    src/app/ElectronToolboxSafe.cpp
+    src/app/ElectronPipeShim.cpp
     src/app/AppContext.cpp
 
     src/common/ModelUtils.cpp
