@@ -1,8 +1,11 @@
+interface AventicsRendererBridge {
+  postMessage(message: string): void;
+  addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
+}
+
 interface Window {
+  aventicsBridge?: AventicsRendererBridge;
   chrome?: {
-    webview?: {
-      postMessage(message: string): void;
-      addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
-    };
+    webview?: AventicsRendererBridge;
   };
 }
