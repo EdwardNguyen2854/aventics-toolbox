@@ -6,6 +6,7 @@
     "rootDir": "src",
     "outDir": "dist",
     "strict": false,
+    "noEmitOnError": true,
     "skipLibCheck": true,
     "removeComments": false
   },
