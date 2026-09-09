@@ -3,6 +3,7 @@
 /release/
 /external/
 /ui/node_modules/
+/ui/package-lock.json
 *.user
 *.suo
 *.pdb
