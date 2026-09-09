@@ -28,6 +28,12 @@ extern "C" int user_initialize(int argc, char* argv[], char* proe_vsn, char* bui
     const ProError err = RegisterAventicsToolboxCommands();
     if (err != PRO_TK_NO_ERROR) {
         Logger::Error(L"Command registration failed.");
+#ifdef AVENTICS_TYPESCRIPT_UI
+        if (g_webViewComInitialized) {
+            CoUninitialize();
+            g_webViewComInitialized = false;
+        }
+#endif
         return static_cast<int>(err);
     }
     return 0;
