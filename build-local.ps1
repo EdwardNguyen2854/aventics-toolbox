@@ -1,3 +1,8 @@
+param(
+    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR,
+    [string]$WebView2Version = "1.0.4191.47"
+)
+
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -10,4 +15,6 @@ $UnlockBat = Join-Path $Creo "Parametric\bin\protk_unlock.bat"
     -ToolkitInclude $ToolkitInclude `
     -ToolkitLib $ToolkitLib `
     -CreoCommonLib $ToolkitLib `
-    -UnlockBat $UnlockBat
+    -UnlockBat $UnlockBat `
+    -WebView2Sdk $WebView2Sdk `
+    -WebView2Version $WebView2Version
