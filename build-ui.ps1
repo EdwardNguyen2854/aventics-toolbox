@@ -110,15 +110,20 @@ $resolvedRuntime = Find-ElectronRuntime
 
 Push-Location $UiRoot
 try {
-    if (-not $resolvedRuntime -and -not $SkipInstall) {
-        Configure-ElectronDownloadEnvironment
-
+    if (-not $SkipInstall) {
         Write-Host "Installing npm dependencies without running package install scripts..."
         npm install --ignore-scripts --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) {
             throw "npm dependency install failed with exit code $LASTEXITCODE."
         }
+    }
 
+    if (-not $resolvedRuntime) {
+        if ($SkipInstall) {
+            throw "Electron runtime is unavailable while -SkipInstall is set. Use -ElectronRuntimeDir or rerun without -SkipInstall."
+        }
+
+        Configure-ElectronDownloadEnvironment
         $ElectronInstallScript = Join-Path $UiRoot "node_modules\electron\install.js"
         if (-not (Test-Path $ElectronInstallScript)) {
             throw "Electron install script is missing after npm install: $ElectronInstallScript"
