@@ -154,6 +154,8 @@ struct InstanceBuilderOptions {
     // false uses X-Y placement; true uses X-Z placement.
     bool useZAxisForRows = false;
     int columns = 5;
-    double columnGap = 50.0; // active assembly units, between columns in the logical grid
-    double rowGap = 50.0;    // active assembly units, between rows in the logical grid
+    // Legacy/native fallback. If row/column gap is negative, this value is used.
+    double gap = 50.0;
+    double columnGap = -1.0; // active assembly units, between logical columns
+    double rowGap = -1.0;    // active assembly units, between logical rows
 };
