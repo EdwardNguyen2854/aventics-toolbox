@@ -1,5 +1,5 @@
 param(
-    [string]$Destination = (Join-Path $env:LOCALAPPDATA "Aventics\AventicsToolbox")
+    [string]$Destination = "C:\aventics\creo\AventicsToolbox"
 )
 
 $ErrorActionPreference = "Stop"
