@@ -8,7 +8,8 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$CreoCommonLib,
 
-    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR
+    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR,
+    [string]$WebView2Version = "1.0.4191.47"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,13 +28,65 @@ if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "npm is not installed or is not on PATH. Install Node.js LTS to build the TypeScript UI."
 }
-if ([string]::IsNullOrWhiteSpace($WebView2Sdk)) {
-    throw "Set WEBVIEW2_SDK_DIR, or pass -WebView2Sdk, pointing to the extracted Microsoft.Web.WebView2 NuGet package root."
+
+function Test-WebView2SdkRoot {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $false
+    }
+
+    return Test-Path (Join-Path $Path "build\native\include\WebView2.h")
 }
+
+if (-not (Test-WebView2SdkRoot $WebView2Sdk)) {
+    if (-not [string]::IsNullOrWhiteSpace($WebView2Sdk)) {
+        Write-Warning "The configured WebView2 SDK is invalid and will be ignored: $WebView2Sdk"
+    }
+
+    $ExternalDir = Join-Path $Root "external"
+    $CachedSdk = Join-Path $ExternalDir "Microsoft.Web.WebView2.$WebView2Version"
+
+    if (Test-WebView2SdkRoot $CachedSdk) {
+        $WebView2Sdk = $CachedSdk
+    }
+    else {
+        Write-Host "WebView2 SDK not found locally. Downloading Microsoft.Web.WebView2 $WebView2Version..."
+        New-Item -ItemType Directory -Force -Path $ExternalDir | Out-Null
+
+        $PackageArchive = Join-Path $ExternalDir "Microsoft.Web.WebView2.$WebView2Version.zip"
+        $PackageUrl = "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$WebView2Version/microsoft.web.webview2.$WebView2Version.nupkg"
+
+        try {
+            Invoke-WebRequest -Uri $PackageUrl -OutFile $PackageArchive
+
+            if (Test-Path $CachedSdk) {
+                Remove-Item -Recurse -Force $CachedSdk
+            }
+            New-Item -ItemType Directory -Force -Path $CachedSdk | Out-Null
+
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($PackageArchive, $CachedSdk)
+        }
+        catch {
+            throw "Could not download/extract Microsoft.Web.WebView2 $WebView2Version. Check network access to api.nuget.org, or set WEBVIEW2_SDK_DIR / pass -WebView2Sdk to an extracted Microsoft.Web.WebView2 package root. Details: $($_.Exception.Message)"
+        }
+        finally {
+            if (Test-Path $PackageArchive) {
+                Remove-Item -Force $PackageArchive
+            }
+        }
+
+        if (-not (Test-WebView2SdkRoot $CachedSdk)) {
+            throw "WebView2 SDK download completed, but WebView2.h was not found under: $CachedSdk"
+        }
+
+        $WebView2Sdk = $CachedSdk
+    }
+}
+
 $WebViewHeader = Join-Path $WebView2Sdk "build\native\include\WebView2.h"
-if (-not (Test-Path $WebViewHeader)) {
-    throw "WebView2.h was not found: $WebViewHeader"
-}
+Write-Host "WebView2 SDK: $WebView2Sdk"
 
 cmake -S $Root -B $BuildDir `
     -G "Visual Studio 17 2022" `
