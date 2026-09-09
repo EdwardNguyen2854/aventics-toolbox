@@ -49,11 +49,17 @@ Copy-Item (Join-Path $Root "installer") (Join-Path $ReleaseRoot "installer") -Re
 $Readme = @"
 Aventics Toolbox v0.5.2 - Electron UI experiment
 
-1. Run .\installer\install.ps1
-2. Register the generated protk.dat in Creo -> Tools -> Auxiliary Applications.
-3. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
-4. Creo launches the Electron UI and communicates with it through a PID-specific Windows named pipe.
-5. The existing native Creo UI remains a fallback if Electron cannot be launched.
+Teammate install location:
+  C:\aventics\creo\AventicsToolbox
+
+1. Extract the ZIP to a local folder.
+2. Run .\installer\install.ps1
+   If Windows blocks creation under C:\, open PowerShell as Administrator and run it again.
+3. Register this generated file in Creo -> Tools -> Auxiliary Applications:
+   C:\aventics\creo\AventicsToolbox\protk.dat
+4. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
+5. Creo launches the Electron UI and communicates with it through a PID-specific Windows named pipe.
+6. The existing native Creo UI remains a fallback if Electron cannot be launched.
 
 No WebView2 SDK or WebView2Loader.dll is required.
 The release DLL must already be unlocked by the developer before packaging.
