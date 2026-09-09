@@ -54,15 +54,17 @@ struct ViewSpec {
     Vec3 up;
 };
 
+// The FRONT/RIGHT/TOP bases follow the same normalized matrix convention used
+// by PTC's UgGraphViewsSave sample. Opposite views flip the corresponding axis.
 constexpr std::array<ViewSpec, kViewCount> kViews = {{
-    {L"FRONT",  { 0.0,  0.0,  1.0}, {0.0, 1.0,  0.0}},
-    {L"BACK",   { 0.0,  0.0, -1.0}, {0.0, 1.0,  0.0}},
-    {L"RIGHT",  { 1.0,  0.0,  0.0}, {0.0, 1.0,  0.0}},
-    {L"LEFT",   {-1.0,  0.0,  0.0}, {0.0, 1.0,  0.0}},
-    {L"TOP",    { 0.0,  1.0,  0.0}, {0.0, 0.0, -1.0}},
-    {L"BOTTOM", { 0.0, -1.0,  0.0}, {0.0, 0.0,  1.0}},
-    {L"ISO_NE", { 1.0, -1.0,  1.0}, {0.0, 1.0,  0.0}},
-    {L"ISO_NW", {-1.0, -1.0,  1.0}, {0.0, 1.0,  0.0}}
+    {L"FRONT",  { 0.0,  0.0,  1.0}, {0.0, 1.0, 0.0}},
+    {L"BACK",   { 0.0,  0.0, -1.0}, {0.0, 1.0, 0.0}},
+    {L"RIGHT",  { 0.0,  1.0,  0.0}, {1.0, 0.0, 0.0}},
+    {L"LEFT",   { 0.0, -1.0,  0.0}, {1.0, 0.0, 0.0}},
+    {L"TOP",    { 1.0,  0.0,  0.0}, {0.0, 0.0, 1.0}},
+    {L"BOTTOM", {-1.0,  0.0,  0.0}, {0.0, 0.0, 1.0}},
+    {L"ISO_NE", { 1.0,  1.0,  1.0}, {0.0, 1.0, 0.0}},
+    {L"ISO_NW", {-1.0,  1.0,  1.0}, {0.0, 1.0, 0.0}}
 }};
 
 enum class IndexStep {
@@ -947,7 +949,7 @@ private:
             << ",\"viewCountPerModel\":" << kViewCount
             << ",\"cachePath\":" << JsonString(cacheDirectory_.wstring())
             << ",\"engine\":\"hybrid-shape-v2\""
-            << ",\"captureProfile\":\"canonical-matrix-8-v2\"}";
+            << ",\"captureProfile\":\"ptc-axis-8-v2\"}";
         out << ",\"query\":{\"ready\":" << JsonBool(queryReady_)
             << ",\"processedPath\":" << JsonString(queryReady_ ? queryDescriptor_.normalizedPreviewPath : L"")
             << ",\"aspectRatio\":" << (queryReady_ ? queryDescriptor_.image.aspectRatio : 0.0)
