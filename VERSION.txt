@@ -2,4 +2,4 @@ Aventics Toolbox
 Version: 0.5.2
 Target: Creo Parametric 9.0.2.0
 Platform: Windows x86e_win64
-Architecture: One Pro/TOOLKIT DLL, Control Panel launcher, standalone native Creo GUI per tool
+Architecture: Native Pro/TOOLKIT DLL backend + out-of-process Electron/TypeScript UI over Windows named pipes; native Creo UI fallback
