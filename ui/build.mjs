@@ -25,5 +25,6 @@ function compile(sourceRelative, outputRelative, moduleKind) {
 }
 
 compile("src/app.ts", "dist/app.js", ts.ModuleKind.ES2020);
+compile("src/similar-cad.ts", "dist/similar-cad.js", ts.ModuleKind.ES2020);
 compile("electron/main.ts", "dist-electron/main.js", ts.ModuleKind.CommonJS);
 compile("electron/preload.ts", "dist-electron/preload.js", ts.ModuleKind.CommonJS);
