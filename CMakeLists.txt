@@ -12,8 +12,6 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 set(PROTOOLKIT_INCLUDE_DIR "" CACHE PATH "Creo TOOLKIT include directory containing ProToolkit.h")
 set(PROTOOLKIT_LIB_DIR "" CACHE PATH "Directory containing protk_dll_NU.lib")
 set(CREO_COMMON_LIB_DIR "" CACHE PATH "Directory containing ucore.lib and udata.lib; often the same as PROTOOLKIT_LIB_DIR")
-option(AVENTICS_TYPESCRIPT_UI "Build the experimental TypeScript/WebView2 UI" ON)
-set(WEBVIEW2_SDK_DIR "" CACHE PATH "Root of the Microsoft.Web.WebView2 NuGet package")
 
 if(NOT EXISTS "${PROTOOLKIT_INCLUDE_DIR}/ProToolkit.h")
     message(FATAL_ERROR "Set PROTOOLKIT_INCLUDE_DIR to the Creo TOOLKIT include directory containing ProToolkit.h.")
@@ -32,6 +30,7 @@ add_library(AventicsToolbox SHARED
     src/app/main.cpp
     src/app/Commands.cpp
     src/app/ToolboxDialogV050.cpp
+    src/app/ElectronToolbox.cpp
     src/app/AppContext.cpp
 
     src/common/ModelUtils.cpp
@@ -67,6 +66,7 @@ target_compile_definitions(AventicsToolbox PRIVATE
     _UNICODE
     UNICODE
     NOMINMAX
+    AVENTICS_ELECTRON_UI=1
 )
 
 target_link_directories(AventicsToolbox PRIVATE
@@ -95,48 +95,6 @@ target_link_libraries(AventicsToolbox PRIVATE
     ws2_32.lib
 )
 
-if(AVENTICS_TYPESCRIPT_UI)
-    if(NOT EXISTS "${WEBVIEW2_SDK_DIR}/build/native/include/WebView2.h")
-        message(FATAL_ERROR
-            "AVENTICS_TYPESCRIPT_UI is ON. Set WEBVIEW2_SDK_DIR to the extracted Microsoft.Web.WebView2 NuGet package root.")
-    endif()
-
-    set(WEBVIEW2_LOADER_DLL "")
-    foreach(candidate
-        "${WEBVIEW2_SDK_DIR}/build/native/x64/WebView2Loader.dll"
-        "${WEBVIEW2_SDK_DIR}/runtimes/win-x64/native/WebView2Loader.dll")
-        if(EXISTS "${candidate}")
-            set(WEBVIEW2_LOADER_DLL "${candidate}")
-            break()
-        endif()
-    endforeach()
-    if(NOT WEBVIEW2_LOADER_DLL)
-        message(FATAL_ERROR "Could not locate the x64 WebView2Loader.dll under WEBVIEW2_SDK_DIR.")
-    endif()
-
-    find_program(NPM_EXECUTABLE NAMES npm npm.cmd REQUIRED)
-    set(AVENTICS_WEB_UI_JS "${CMAKE_CURRENT_SOURCE_DIR}/ui/dist/app.js")
-    add_custom_command(
-        OUTPUT "${AVENTICS_WEB_UI_JS}"
-        COMMAND "${NPM_EXECUTABLE}" install --no-audit --no-fund
-        COMMAND "${NPM_EXECUTABLE}" run build
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ui"
-        DEPENDS
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/package.json"
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/tsconfig.json"
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/app.ts"
-        COMMENT "Building Aventics TypeScript UI"
-        VERBATIM
-    )
-    add_custom_target(AventicsWebUi DEPENDS "${AVENTICS_WEB_UI_JS}")
-    add_dependencies(AventicsToolbox AventicsWebUi)
-
-    target_sources(AventicsToolbox PRIVATE src/app/WebToolbox.cpp)
-    target_include_directories(AventicsToolbox PRIVATE "${WEBVIEW2_SDK_DIR}/build/native/include")
-    target_compile_definitions(AventicsToolbox PRIVATE AVENTICS_TYPESCRIPT_UI=1)
-    target_link_libraries(AventicsToolbox PRIVATE shlwapi.lib)
-endif()
-
 # This matches the protk_dll_NU configuration that successfully built the
 # v0.1.0 checker on the target Creo workstation. If your PTC sample
 # makefile uses the MD variant, switch both runtime and Toolkit library.
@@ -156,21 +114,3 @@ add_custom_command(TARGET AventicsToolbox POST_BUILD
         "$<TARGET_FILE:AventicsToolbox>"
         "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/$<TARGET_FILE_NAME:AventicsToolbox>"
 )
-
-if(AVENTICS_TYPESCRIPT_UI)
-    add_custom_command(TARGET AventicsToolbox POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${WEBVIEW2_LOADER_DLL}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/WebView2Loader.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/index.html"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/index.html"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/styles.css"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/styles.css"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${AVENTICS_WEB_UI_JS}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/app.js"
-    )
-endif()
