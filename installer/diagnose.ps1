@@ -58,7 +58,8 @@ $required = @(
 )
 foreach ($relative in $required) {
     $full = Join-Path $InstallRoot $relative
-    Add-Line ((if (Test-Path $full) { "OK      " } else { "MISSING " }) + $full)
+    $status = if (Test-Path $full) { "OK      " } else { "MISSING " }
+    Add-Line ($status + $full)
 }
 
 $dll = Join-Path $InstallRoot "bin\aventics_toolbox.dll"
@@ -144,7 +145,7 @@ if (-not (Test-Path $dll)) { Add-Line "FAIL: native DLL is missing." }
 if (-not $xtops.Count) { Add-Line "INFO: start Creo before rerunning diagnostics." }
 if ($xtops.Count -and -not $pipes.Count) { Add-Line "FAIL: Creo is running but no Aventics pipes exist; inspect native startup/logging." }
 if ($pipes.Count -and -not $mainElectron.Count) { Add-Line "FAIL: native pipes exist but Electron main process has no matching --pipe argument." }
-if ((Test-Path $electronLog)) { Add-Line "INFO: electron_bridge.log now contains the exact named-pipe handshake/error sequence." }
+if ((Test-Path $electronLog)) { Add-Line "INFO: electron_bridge.log contains the exact named-pipe handshake/error sequence." }
 Add-Line ""
 Add-Line "Send this report plus both files from $logDir to the developer."
 
