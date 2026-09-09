@@ -1,3 +1,4 @@
+.github/workflows/typescript-ui.yml
 .gitignore
 CMakeLists.txt
 CMakePresets.json
@@ -12,10 +13,12 @@ docs/CHANGELOG.md
 docs/DEVELOPMENT.md
 docs/RELEASE_PLAN_0.3.0.md
 docs/RELEASE_PLAN_0.4.0.md
+docs/typescript-ui-experiment.md
 include/app/AppContext.h
 include/app/Commands.h
 include/app/ToolboxDialog.h
 include/app/Version.h
+include/app/WebToolbox.h
 include/common/FamilyTableService.h
 include/common/FolderPicker.h
 include/common/FolderScanner.h
@@ -46,6 +49,7 @@ src/app/AppContext.cpp
 src/app/Commands.cpp
 src/app/ToolboxDialog.cpp
 src/app/ToolboxDialogV050.cpp
+src/app/WebToolbox.cpp
 src/app/main.cpp
 src/common/FamilyTableService.cpp
 src/common/FolderPicker.cpp
@@ -75,3 +79,9 @@ text/usascii/resource/aventics_weak.res
 text/usascii/resource/aventics_accuracy.res
 text/usascii/resource/aventics_inspection.res
 text/usascii/resource/aventics_instance_builder.res
+ui/index.html
+ui/package.json
+ui/src/app.ts
+ui/src/webview.d.ts
+ui/styles.css
+ui/tsconfig.json
