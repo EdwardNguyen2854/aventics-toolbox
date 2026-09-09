@@ -35,7 +35,7 @@ constexpr wchar_t kWindowClass[] = L"AventicsSimilarCadHostWindow";
 constexpr UINT_PTR kIndexTimer = 0x53434144; // SCAD
 constexpr UINT kPipeCommandMessage = WM_APP + 0x61;
 constexpr UINT kPipeConnectedMessage = WM_APP + 0x62;
-constexpr int kViewCount = 8;
+constexpr std::size_t kViewCount = 8;
 
 std::wstring Utf8ToWide(const std::string& text) {
     if (text.empty()) return {};
@@ -153,9 +153,9 @@ FolderScanOptions SearchFolderOptions(bool recursive, bool latest) {
 }
 
 struct RotationSpec {
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    double x;
+    double y;
+    double z;
 };
 
 constexpr std::array<RotationSpec, kViewCount> kViews = {{
@@ -326,16 +326,10 @@ private:
     void HandleProtocol(const std::wstring& raw) {
         const auto fields = SplitProtocol(raw);
         if (fields.empty()) return;
-        const auto& action = fields[0];
+        const std::wstring& action = fields[0];
 
-        if (action == L"ready" || action == L"refresh") {
-            SendState();
-            return;
-        }
-        if (action == L"cancel") {
-            if (busy_) FinishIndex(true);
-            return;
-        }
+        if (action == L"ready" || action == L"refresh") { SendState(); return; }
+        if (action == L"cancel") { if (busy_) FinishIndex(true); return; }
         if (action == L"index" && fields.size() >= 4) {
             StartIndex(fields[1], ParseBool(fields[2]), ParseBool(fields[3]));
             return;
@@ -346,10 +340,7 @@ private:
             Search(fields[1], fields[2], topK);
             return;
         }
-        if (action == L"open" && fields.size() >= 2) {
-            OpenModel(fields[1]);
-            return;
-        }
+        if (action == L"open" && fields.size() >= 2) { OpenModel(fields[1]); return; }
 
         statusMessage_ = L"Unknown Similar CAD action: " + action;
         SendState();
@@ -366,7 +357,6 @@ private:
         libraryFolder_ = folder;
         recursive_ = recursive;
         latest_ = latest;
-        queryImage_.clear();
         results_.clear();
         cacheDirectory_ = SimilarCadSearchEngine::CacheDirectoryForLibrary(libraryFolder_);
 
@@ -379,8 +369,8 @@ private:
 
         std::wstring indexedLibrary;
         std::vector<SimilarCadModelRecord> previous;
-        std::wstring loadError;
-        SimilarCadSearchEngine::LoadIndex(cacheDirectory_, indexedLibrary, previous, loadError);
+        std::wstring ignoredLoadError;
+        SimilarCadSearchEngine::LoadIndex(cacheDirectory_, indexedLibrary, previous, ignoredLoadError);
         existingRecords_.clear();
         for (auto& record : previous) {
             existingRecords_.emplace(SimilarCadSearchEngine::StablePathKey(record.sourcePath), std::move(record));
@@ -407,17 +397,15 @@ private:
         if (record.modifiedStamp != SimilarCadSearchEngine::FileStamp(source.sourcePath)) return false;
         if (record.views.size() != kViewCount) return false;
         for (const auto& view : record.views) {
-            if (view.signature.size() != SimilarCadSearchEngine::SignatureLength || !fs::exists(fs::path(view.renderPath))) return false;
+            if (view.signature.size() != SimilarCadSearchEngine::SignatureLength) return false;
+            if (!fs::exists(fs::path(view.renderPath))) return false;
         }
         return true;
     }
 
     void TickIndex() {
         if (!busy_) return;
-        if (operationIndex_ >= sources_.size()) {
-            FinishIndex(false);
-            return;
-        }
+        if (operationIndex_ >= sources_.size()) { FinishIndex(false); return; }
 
         ModelDescriptor source = sources_[operationIndex_];
         statusMessage_ = L"Indexing " + source.displayName;
@@ -457,13 +445,13 @@ private:
         record.sourcePath = source.sourcePath;
         record.creoFileVersion = source.creoFileVersion;
         record.modifiedStamp = SimilarCadSearchEngine::FileStamp(source.sourcePath);
-
         const bool rendered = RenderViews(source.model, source.sourcePath, record.views, error);
         before.CleanupNewModels();
         return rendered;
     }
 
-    bool RenderViews(ProMdl model, const std::wstring& sourcePath, std::vector<SimilarCadViewRecord>& views, std::wstring& error) {
+    bool RenderViews(ProMdl model, const std::wstring& sourcePath,
+                     std::vector<SimilarCadViewRecord>& views, std::wstring& error) {
         views.clear();
         if (!model) {
             error = L"No model was loaded for rendering.";
@@ -480,11 +468,11 @@ private:
 
         int previousWindow = -1;
         const bool havePreviousWindow = ProWindowCurrentGet(&previousWindow) == PRO_TK_NO_ERROR;
-
         int renderWindow = -1;
-        const bool existingWindow = ProMdlWindowGet(model, &renderWindow) == PRO_TK_NO_ERROR;
-        bool createdWindow = false;
-        if (!existingWindow) {
+        const bool modelAlreadyDisplayed = ProMdlWindowGet(model, &renderWindow) == PRO_TK_NO_ERROR;
+        const bool createdWindow = !modelAlreadyDisplayed;
+
+        if (createdWindow) {
             ProMdlName name;
             name[0] = L'\0';
             const ProError nameError = ProMdlMdlnameGet(model, name);
@@ -497,27 +485,27 @@ private:
                 error = L"Could not create Creo render window: " + ModelUtils::ErrorName(windowError);
                 return false;
             }
-            createdWindow = true;
         }
 
         if (ProWindowCurrentSet(renderWindow) != PRO_TK_NO_ERROR) {
-            error = L"Could not make the render window current.";
-            if (createdWindow && havePreviousWindow) ProWindowCurrentSet(previousWindow);
-            if (createdWindow) ProWindowDelete(renderWindow);
+            error = L"Could not make the Creo render window current.";
             return false;
         }
 
         ProMatrix originalMatrix{};
-        const bool haveOriginalMatrix = existingWindow && ProViewMatrixGet(model, nullptr, originalMatrix) == PRO_TK_NO_ERROR;
+        const bool preserveView = modelAlreadyDisplayed && ProViewMatrixGet(model, nullptr, originalMatrix) == PRO_TK_NO_ERROR;
         ProMdlDisplay(model);
 
         bool success = true;
-        for (int i = 0; i < kViewCount; ++i) {
-            const auto& rotation = kViews[static_cast<std::size_t>(i)];
+        for (std::size_t i = 0; i < kViews.size(); ++i) {
+            const auto& rotation = kViews[i];
             ProError viewError = ProViewReset(model, nullptr);
-            if (viewError == PRO_TK_NO_ERROR && rotation.x != 0.0) viewError = ProViewRotate(model, nullptr, PRO_X_ROTATION, rotation.x);
-            if (viewError == PRO_TK_NO_ERROR && rotation.y != 0.0) viewError = ProViewRotate(model, nullptr, PRO_Y_ROTATION, rotation.y);
-            if (viewError == PRO_TK_NO_ERROR && rotation.z != 0.0) viewError = ProViewRotate(model, nullptr, PRO_Z_ROTATION, rotation.z);
+            if (viewError == PRO_TK_NO_ERROR && rotation.x != 0.0)
+                viewError = ProViewRotate(model, nullptr, PRO_X_ROTATION, rotation.x);
+            if (viewError == PRO_TK_NO_ERROR && rotation.y != 0.0)
+                viewError = ProViewRotate(model, nullptr, PRO_Y_ROTATION, rotation.y);
+            if (viewError == PRO_TK_NO_ERROR && rotation.z != 0.0)
+                viewError = ProViewRotate(model, nullptr, PRO_Z_ROTATION, rotation.z);
             if (viewError == PRO_TK_NO_ERROR) viewError = ProViewRefit(model, nullptr);
             if (viewError != PRO_TK_NO_ERROR) {
                 error = L"Could not orient Creo view " + std::to_wstring(i + 1) + L": " + ModelUtils::ErrorName(viewError);
@@ -526,7 +514,7 @@ private:
             }
 
             ProWindowRepaint(renderWindow);
-            ProWindowDeviceFlush(renderWindow);
+            ProWindowDeviceFlush(nullptr);
 
             const std::wstring fileName = SimilarCadSearchEngine::StablePathKey(sourcePath) + L"_v" + std::to_wstring(i) + L".jpg";
             const fs::path renderPath = rendersDir / fileName;
@@ -555,12 +543,14 @@ private:
             views.push_back(std::move(view));
         }
 
-        if (haveOriginalMatrix) {
+        if (preserveView) {
             ProViewMatrixSet(model, nullptr, originalMatrix);
             ProWindowRepaint(renderWindow);
         }
-        if (havePreviousWindow && previousWindow >= 0 && previousWindow != renderWindow) ProWindowCurrentSet(previousWindow);
-        if (createdWindow) ProWindowDelete(renderWindow);
+
+        const bool canLeaveRenderWindow = havePreviousWindow && previousWindow >= 0 && previousWindow != renderWindow;
+        if (canLeaveRenderWindow) ProWindowCurrentSet(previousWindow);
+        if (createdWindow && canLeaveRenderWindow) ProWindowDelete(renderWindow);
 
         if (!success) views.clear();
         return success;
@@ -573,21 +563,16 @@ private:
 
         if (cancelled) {
             statusMessage_ = L"Similar CAD indexing cancelled. The previous saved index was kept.";
-            sources_.clear();
-            pendingRecords_.clear();
-            existingRecords_.clear();
-            operationIndex_ = 0;
-            SendState();
-            return;
+        } else {
+            std::wstring error;
+            if (!SimilarCadSearchEngine::SaveIndex(cacheDirectory_, libraryFolder_, pendingRecords_, error)) {
+                statusMessage_ = error;
+            } else {
+                activeRecords_ = pendingRecords_;
+                statusMessage_ = L"Similar CAD index ready: " + std::to_wstring(activeRecords_.size()) + L" parts.";
+            }
         }
 
-        std::wstring error;
-        if (!SimilarCadSearchEngine::SaveIndex(cacheDirectory_, libraryFolder_, pendingRecords_, error)) {
-            statusMessage_ = error;
-        } else {
-            activeRecords_ = pendingRecords_;
-            statusMessage_ = L"Similar CAD index ready: " + std::to_wstring(activeRecords_.size()) + L" parts.";
-        }
         sources_.clear();
         pendingRecords_.clear();
         existingRecords_.clear();
@@ -611,15 +596,15 @@ private:
         std::wstring indexedLibrary;
         std::wstring error;
         if (!SimilarCadSearchEngine::LoadIndex(cacheDirectory_, indexedLibrary, activeRecords_, error)) {
-            statusMessage_ = error;
             results_.clear();
+            statusMessage_ = error;
             SendState();
             return;
         }
 
         if (!SimilarCadSearchEngine::Search(queryImage_, activeRecords_, static_cast<std::size_t>(topK_), results_, error)) {
-            statusMessage_ = error;
             results_.clear();
+            statusMessage_ = error;
             SendState();
             return;
         }
@@ -679,9 +664,7 @@ private:
         return out.str();
     }
 
-    void SendState() {
-        SendLine(BuildStateJson());
-    }
+    void SendState() { SendLine(BuildStateJson()); }
 
     HWND hwnd_ = nullptr;
     std::wstring pipeName_;
