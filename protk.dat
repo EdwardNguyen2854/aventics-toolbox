@@ -2,6 +2,6 @@ name AventicsToolbox
 startup dll
 exec_file D:\3-work\aventics-toolbox\dist\x86e_win64\obj\aventics_toolbox.dll
 text_dir D:\3-work\aventics-toolbox
-allow_stop TRUE
+allow_stop FALSE
 fail_tol TRUE
 end
