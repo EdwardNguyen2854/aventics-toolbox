@@ -1,6 +1,8 @@
 /build/
 /dist/
 /release/
+/external/
+/ui/node_modules/
 *.user
 *.suo
 *.pdb
