@@ -39,6 +39,8 @@ public:
     double inspectionGap = 50.0;
     bool instanceRecursive = false;
     bool instanceLatest = true;
+    bool instanceRowsAlongX = false;
+    bool instanceUseZAxis = false;
     bool instanceUnresolvedOnly = false;
     int instanceColumns = 5;
     double instanceGap = 50.0;
