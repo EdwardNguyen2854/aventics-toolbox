@@ -1,5 +1,5 @@
 param(
-    [string]$Destination = (Join-Path $env:LOCALAPPDATA "Aventics\AventicsToolbox")
+    [string]$Destination = "C:\aventics\creo\AventicsToolbox"
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,7 +44,7 @@ end
 Set-Content (Join-Path $Destination "protk.dat") $Protk -Encoding ascii
 
 Write-Host ""
-Write-Host "Aventics Toolbox Electron UI experiment installed to:"
+Write-Host "Aventics Toolbox installed to:"
 Write-Host "  $Destination"
 Write-Host ""
 Write-Host "Register this file in Creo -> Tools -> Auxiliary Applications:"
