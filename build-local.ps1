@@ -1,6 +1,5 @@
 param(
-    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR,
-    [string]$WebView2Version = "1.0.4191.47"
+    [switch]$SkipUi
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,10 +10,12 @@ $ToolkitInclude = Join-Path $Creo "Common Files\protoolkit\includes"
 $ToolkitLib = Join-Path $Creo "Common Files\protoolkit\x86e_win64\obj"
 $UnlockBat = Join-Path $Creo "Parametric\bin\protk_unlock.bat"
 
+if (-not $SkipUi) {
+    & (Join-Path $Root "build-ui.ps1")
+}
+
 & (Join-Path $Root "build-and-unlock.ps1") `
     -ToolkitInclude $ToolkitInclude `
     -ToolkitLib $ToolkitLib `
     -CreoCommonLib $ToolkitLib `
-    -UnlockBat $UnlockBat `
-    -WebView2Sdk $WebView2Sdk `
-    -WebView2Version $WebView2Version
+    -UnlockBat $UnlockBat
