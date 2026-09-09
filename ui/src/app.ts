@@ -328,17 +328,72 @@ function pageInstances() {
   const added = state.instanceResults.filter(r => lower(r.status) === "added").length;
   const unresolved = state.instanceResults.filter(r => ["not found", "failed", "skipped"].includes(lower(r.status))).length;
   return `
-    ${header("Instance Builder", "Paste instance codes, review their grid allocation, then resolve exact family-table instances and assemble them into the active assembly.")}
+    ${header("Instance Builder", "Resolve family-table instance codes, preview their planned grid, then assemble the resolved instances into the active assembly.")}
     ${!state.activeModel.isAssembly ? `<div class="notice warning" style="margin-bottom:14px">Open or create a Creo assembly before building instances.</div>` : ""}
-    <div class="panel"><div class="panel-header"><h3>Source and requests</h3><span class="muted">Active: ${esc(state.activeModel.name || "No assembly")}</span></div><div class="panel-body"><div class="form-grid">
-      <div class="field span-8"><label>Source folder</label><div class="input-row"><input class="input" data-draft="instances.folder" value="${esc(draft.instances.folder)}" ${disabled(state.busy)} /><button class="btn" data-action="browseInstances" ${disabled(state.busy)}>Browse</button></div></div>
-      <div class="field span-4"><span class="field-label">Folder options</span><div class="checks"><label class="check"><input type="checkbox" data-draft="instances.recursive" ${checked(draft.instances.recursive)} ${disabled(state.busy)} />Subfolders</label><label class="check"><input type="checkbox" data-draft="instances.latest" ${checked(draft.instances.latest)} ${disabled(state.busy)} />Latest only</label></div></div>
-      <div class="field span-8"><label>Instance codes</label><textarea class="textarea" data-draft="instances.codes" placeholder="One code per line, or paste a whitespace/comma separated list" ${disabled(state.busy)}>${esc(draft.instances.codes)}</textarea></div>
-      <div class="field span-2"><label>Columns</label><input class="input" type="number" min="1" data-draft="instances.columns" value="${esc(draft.instances.columns)}" ${disabled(state.busy)} /></div>
-      <div class="field span-2"><label>Gap</label><input class="input" type="number" min="0" step="any" data-draft="instances.gap" value="${esc(draft.instances.gap)}" ${disabled(state.busy)} /></div>
-      <div class="span-12 toolbar"><span class="notice">Missing instances keep their planned position empty; later requests retain their original grid locations.</span><div class="toolbar-right"><button class="btn" data-action="planInstances" ${disabled(state.busy)}>Plan positions</button><button class="btn primary" data-action="runInstances" ${disabled(state.busy || !state.activeModel.isAssembly)}>Build instances</button></div></div>
-    </div></div></div>
-    <div class="panel"><div class="panel-header"><h3>Plan / results</h3><div class="toolbar-right"><label class="check"><input type="checkbox" data-filter-check="instanceUnresolvedOnly" ${checked(ui.instanceUnresolvedOnly)} />Unresolved only</label><button class="btn small" data-action="exportInstances" ${disabled(state.busy || !state.instanceResults.length)}>Export CSV</button><button class="btn small" data-action="clearInstances" ${disabled(state.busy || !state.instanceResults.length)}>Clear</button></div></div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>Source</h3><span class="muted">Active: ${esc(state.activeModel.name || "No assembly")}</span></div>
+      <div class="panel-body"><div class="form-grid">
+        <div class="field span-8">
+          <label>Source folder</label>
+          <div class="input-row">
+            <input class="input" data-draft="instances.folder" value="${esc(draft.instances.folder)}" ${disabled(state.busy)} />
+            <button class="btn" data-action="browseInstances" ${disabled(state.busy)}>Browse</button>
+          </div>
+        </div>
+        <div class="field span-4">
+          <span class="field-label">Folder options</span>
+          <div class="checks">
+            <label class="check"><input type="checkbox" data-draft="instances.recursive" ${checked(draft.instances.recursive)} ${disabled(state.busy)} />Subfolders</label>
+            <label class="check"><input type="checkbox" data-draft="instances.latest" ${checked(draft.instances.latest)} ${disabled(state.busy)} />Latest only</label>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>Requests</h3><span class="muted">One code per line or paste a list</span></div>
+      <div class="panel-body"><div class="form-grid">
+        <div class="field span-12">
+          <label>Instance codes</label>
+          <textarea class="textarea compact" data-draft="instances.codes" placeholder="e.g. ABC-001&#10;ABC-002&#10;ABC-003" ${disabled(state.busy)}>${esc(draft.instances.codes)}</textarea>
+          <div class="field-help">Whitespace- and comma-separated lists are also accepted.</div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>Placement</h3><span class="muted">Row-major grid · unresolved positions remain empty</span></div>
+      <div class="panel-body"><div class="form-grid">
+        <div class="field span-3">
+          <label>Columns</label>
+          <input class="input" type="number" min="1" data-draft="instances.columns" value="${esc(draft.instances.columns)}" ${disabled(state.busy)} />
+          <div class="field-help">Instances per row</div>
+        </div>
+        <div class="field span-3">
+          <label>Gap</label>
+          <input class="input" type="number" min="0" step="any" data-draft="instances.gap" value="${esc(draft.instances.gap)}" ${disabled(state.busy)} />
+          <div class="field-help">Spacing between planned positions</div>
+        </div>
+        <div class="field span-6">
+          <span class="field-label">Layout behavior</span>
+          <div class="option-summary">
+            <strong>Preserve request positions</strong>
+            <span>Missing instances leave an empty grid position so later requests keep their original row and column.</span>
+          </div>
+        </div>
+        <div class="span-12 toolbar action-bar">
+          <span class="notice">Preview the plan first when you want to verify row and column allocation before modifying the assembly.</span>
+          <div class="toolbar-right">
+            <button class="btn" data-action="planInstances" ${disabled(state.busy)}>Plan positions</button>
+            <button class="btn primary" data-action="runInstances" ${disabled(state.busy || !state.activeModel.isAssembly)}>Build instances</button>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>Plan / results</h3><div class="toolbar-right"><label class="check"><input type="checkbox" data-filter-check="instanceUnresolvedOnly" ${checked(ui.instanceUnresolvedOnly)} />Unresolved only</label><button class="btn small" data-action="exportInstances" ${disabled(state.busy || !state.instanceResults.length)}>Export CSV</button><button class="btn small" data-action="clearInstances" ${disabled(state.busy || !state.instanceResults.length)}>Clear</button></div></div>
       <div class="table-wrap"><table><thead><tr><th>Code</th><th>Row</th><th>Column</th><th>Generic</th><th>Added model</th><th>Status</th><th>Details</th></tr></thead><tbody>
       ${rows.length ? rows.map(result => `<tr><td class="mono">${esc(result.code)}</td><td>${result.row}</td><td>${result.column}</td><td class="mono">${esc(result.genericName || "-")}</td><td class="mono">${esc(result.addedModelName || "-")}</td><td>${badge(result.status)}</td><td class="details">${esc(result.details)}</td></tr>`).join("") : emptyRow(7, state.instanceResults.length ? "No unresolved results" : "No plan yet")}
       </tbody></table></div><div class="summary-strip"><strong>${state.instanceResults.length} requested</strong><span>${added} added</span><span>${unresolved} unresolved</span><span>${rows.length} shown</span></div>
