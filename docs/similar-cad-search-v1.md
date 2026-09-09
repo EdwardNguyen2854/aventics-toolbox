@@ -1,63 +1,182 @@
-# Similar CAD Search v1 — implementation notes
+# Similar CAD Search v1 — implementation and validation notes
 
 Branch: `feature/similar-cad-search-v1`
 
 Tracking issue: #15
 
-## Purpose
+Draft PR: #17
 
-The first working slice proves the complete image-to-Creo retrieval workflow before adding a heavyweight learned embedding dependency.
+## Current milestone
+
+The original technical spike proved that Creo parts could be rendered, cached, indexed, and searched. Workstation testing then exposed three issues that are now the focus of this stabilization pass:
+
+1. captured orientations were not reliably the intended views;
+2. the Electron Toolbox could indirectly stall indexing until it was closed;
+3. the index was not directly browseable/inspectable after creation.
+
+The query scorer was also too sensitive to background, aspect distortion, and a single accidental best-view match.
+
+This update changes both the capture path and the query path while preserving the existing local/offline architecture.
+
+## Updated workflow
 
 ```text
 Creo part library
   -> discover .prt / .prt.N files
-  -> load one part at a time through Pro/TOOLKIT
-  -> generate 8 deterministic raster views
-  -> compute a local visual signature for each view
-  -> persist an incremental local index
+  -> load one part
+  -> orient one canonical view with an absolute normalized matrix
+  -> yield to Creo
+  -> raster that view
+  -> yield to Creo
+  -> analyze/cache that view
+  -> yield to Creo
+  -> repeat for 8 verified views
+  -> restore the previous view/window
+  -> clean models introduced by indexing
+  -> persist a versioned local index
 
 query image
-  -> compute the same visual signature
-  -> compare against every indexed view
-  -> best view score becomes the part score
-  -> return top-K Creo files
+  -> preserve source aspect ratio
+  -> estimate background / isolate strongest foreground component
+  -> crop with margin when Auto isolate is enabled
+  -> letterbox and center without stretching
+  -> build separate silhouette and edge descriptors
+  -> compare with all indexed views
+  -> combine shape + edge + proportion similarity
+  -> aggregate the strongest 3 view scores
+  -> return top-K Creo parts
 ```
 
-The current scorer is intentionally labelled `prototype-signature-v1`. It is not a probability and it is not yet a learned CLIP/SigLIP-style embedding. The index has explicit schema/signature versions so the scorer can be replaced later without changing the Creo-facing workflow.
+## Capture profile v2
 
-## Current v1 slice
+The current profile is deliberately still **8 views** until workstation inspection confirms the orientations are correct:
 
-### Input
+1. `FRONT`
+2. `BACK`
+3. `RIGHT`
+4. `LEFT`
+5. `TOP`
+6. `BOTTOM`
+7. `ISO_NE`
+8. `ISO_NW`
 
-- PNG
-- JPG / JPEG
-- BMP
+The previous reset/rotate sequence has been replaced by normalized absolute `ProViewMatrixSet` transforms. Each view is oriented and repainted in one timer step, then rastered in a later timer step. This gives Creo time to process its window/message loop before capture.
 
-### Creo library
+The index schema/signature version is now `2`. Existing v1 indexes intentionally require a rebuild because the capture labels, descriptor data, and query engine changed.
 
-- `.prt`
-- versioned `.prt.N`
-- optional subfolder traversal
-- optional latest-version-only filtering
+## Responsiveness and Toolbox independence
 
-Assemblies and STEP files are intentionally not indexed in this slice.
+The first spike performed all views for one model inside a single timer callback and wrote UI state synchronously through the named pipe. On a real workstation this could leave Creo appearing not responsive and could allow a slow/stalled Electron consumer to influence capture progress.
 
-### Standard views
+The new index state machine is:
 
-Each indexed part gets 8 cached JPEG views:
+```text
+Select source
+  -> Load source
+  -> Orient view
+  -> Capture raster
+  -> Analyze view
+  -> Orient next view
+  -> ...
+  -> Finalize source
+  -> next source
+```
 
-1. default/front
-2. back
-3. left
-4. right
-5. top
-6. bottom
-7. isometric A
-8. isometric B
+There is a short timer yield between each state.
 
-The renderer uses Creo view reset/rotate/refit operations and `ProRasterFileWrite`. Existing displayed model views are restored after rendering when a model was already open.
+State delivery to Electron now uses a dedicated writer thread with latest-state coalescing. Creo's main/UI thread only builds and queues state; it no longer waits for the Electron pipe write to complete.
 
-### Local cache
+Expected behavior:
+
+- indexing continues if the Toolbox window is closed;
+- reconnecting/reopening the Toolbox receives the latest host state;
+- a slow UI cannot block the Creo capture loop;
+- Cancel cleans the model currently being captured and keeps the previously saved index.
+
+## Query engine v2
+
+The active scorer is now labelled:
+
+```text
+hybrid-shape-v2
+```
+
+It is still local and deterministic; it is not a calibrated probability and it is not yet the learned ONNX encoder planned for the next retrieval milestone.
+
+### What changed
+
+The v1 query path resized the source into a fixed square before feature extraction. That distorted long/thin or tall parts and made background/lighting edges overly influential.
+
+v2:
+
+- decodes with the original aspect ratio preserved;
+- estimates a background color from corner patches;
+- uses adaptive color/edge thresholds;
+- finds the strongest connected foreground component with a center prior;
+- optionally crops around that component;
+- fits it into a normalized square canvas without stretching;
+- computes a 16x16 silhouette descriptor;
+- computes a separate 16x16 intensity/silhouette-edge descriptor;
+- stores object aspect ratio and normalized fill ratio.
+
+The UI shows both the original query and the normalized query preview. Users can disable **Automatically isolate and center the main object** to compare against the full image when automatic foreground detection is wrong.
+
+### Ranking
+
+Each query/view comparison contains:
+
+- silhouette/shape similarity;
+- edge similarity;
+- aspect/fill proportion similarity.
+
+A per-view hybrid score is computed from those signals. The part score then aggregates the strongest three indexed views instead of letting one accidental view completely determine the result.
+
+Search results expose:
+
+- winning canonical view name;
+- shape score;
+- edge score;
+- proportion score.
+
+These fields are diagnostic signals, not probabilities.
+
+## Indexed-library browser
+
+Similar CAD Search now has two sections:
+
+```text
+Search | Library
+```
+
+The Library section works from the persisted index and provides:
+
+- indexed-part count;
+- server-side name/path filtering;
+- pagination;
+- cached thumbnail;
+- Open in Creo;
+- Locate in Explorer;
+- Use as query;
+- Inspect captured views.
+
+`Inspect` displays every cached canonical view together with its view name and basic descriptor metrics. This is the primary capture-debugging surface: a bad orientation, clipped model, or inconsistent fit is visible before blaming the ranking model.
+
+Protocol additions include:
+
+```text
+prepareQuery <image> <auto-crop>
+search <folder> <image> <top-K> <auto-crop>
+browse <folder> <filter> <page> <page-size>
+inspect <part-path>
+```
+
+The Similar CAD protocol remains isolated on:
+
+```text
+\\.\pipe\aventics-similar-cad-<Creo PID>
+```
+
+## Local cache
 
 Cache root:
 
@@ -65,130 +184,111 @@ Cache root:
 %LOCALAPPDATA%\AventicsToolbox\similar-cad\<library-hash>\
 ```
 
-Contents:
+The v2 render files use named canonical views:
 
 ```text
-index.bin
 renders\
-  <model-hash>_v0.jpg
-  <model-hash>_v1.jpg
+  <model-hash>_FRONT.jpg
+  <model-hash>_BACK.jpg
+  <model-hash>_RIGHT.jpg
   ...
 ```
 
-`index.bin` stores:
+Normalized query previews are stored separately under:
 
-- schema version
-- signature version and length
-- library path
-- model path/name
-- Creo file version
-- file modification stamp
-- cached render paths
-- per-view signature vectors
+```text
+%LOCALAPPDATA%\AventicsToolbox\similar-cad\query-previews\
+```
 
-A refresh reuses a model record when the source timestamp is unchanged and all 8 cached views/signatures are still valid. Removed source models disappear from the next saved index.
+The persisted index stores:
+
+- schema/signature versions;
+- library path;
+- model path/name;
+- Creo file version;
+- source modification stamp;
+- canonical view name;
+- cached render path;
+- aspect/fill metrics;
+- silhouette + edge descriptor.
+
+A refresh reuses a model only when the source timestamp, canonical view set, descriptor version, and cached images are all still valid.
 
 ## Session safety
 
-Indexing follows the same model-lifecycle principle as folder QC:
+The indexing lifecycle remains:
 
 ```text
-capture session
--> load one part
--> render/index it
--> restore the previous view/window where possible
--> erase models introduced by that retrieval
+snapshot session
+-> retrieve one part
+-> capture/analyze views incrementally
+-> restore previous view/window when applicable
+-> erase models introduced by retrieval
 -> continue
 ```
 
-Models that were already present in the Creo session are not intentionally erased.
+Models already present in the session are not intentionally erased.
 
-The index operation runs one source model per Creo UI timer tick, so Cancel takes effect between models. Cancelling keeps the previously saved index instead of replacing it with a partial index.
+## Validation checklist for this update
 
-## Electron integration
+### Capture correctness
 
-Similar CAD Search uses a dedicated named pipe:
+- [ ] `FRONT` is repeatable and visually the intended front orientation.
+- [ ] `BACK`, `LEFT`, `RIGHT`, `TOP`, and `BOTTOM` are distinct and correct.
+- [ ] both isometric views are distinct and useful.
+- [ ] rerunning the same part produces the same orientations.
+- [ ] model fit/crop is consistent enough for retrieval.
+- [ ] already-open model view is restored after indexing.
 
-```text
-\\.\pipe\aventics-similar-cad-<Creo PID>
-```
+### Responsiveness
 
-This is separate from the existing toolbox QC/Builder pipe. The separation keeps search/index protocol changes from destabilizing existing tools.
+- [ ] Creo remains responsive between raster operations.
+- [ ] indexing continues with the Toolbox open.
+- [ ] indexing continues after the Toolbox is closed.
+- [ ] reopening the Toolbox reconnects and shows current/completed state.
+- [ ] Cancel during a model cleans up correctly.
 
-Protocol actions currently include:
+### Library browser
 
-```text
-ready
-refresh
-index <folder> <recursive> <latest>
-cancel
-search <folder> <query-image> <top-K>
-open <part-path>
-```
+- [ ] indexed parts are searchable by name/path.
+- [ ] pagination works for a library larger than one page.
+- [ ] Inspect shows all 8 named cached views.
+- [ ] Open and Locate work from the library and inspector.
+- [ ] a cached view can be promoted to the query.
 
-Windows file/folder pickers and Locate-in-Explorer are handled by the Electron main process.
+### Query quality
 
-## UI
+Build a repeatable query set containing:
 
-The tool is exposed in:
-
-- the sidebar
-- a Control Panel card
-
-The page contains:
-
-- query image preview and picker
-- Creo library folder and options
-- Build / refresh index
-- index statistics
-- progress with rebuilt / unchanged / failed counts
-- Cancel
-- configurable top-K search
-- ranked thumbnail results
-- Open in Creo
-- Locate in Explorer
-
-The displayed similarity value is explicitly a visual similarity score, not a calibrated engineering probability.
-
-## Why the prototype scorer exists
-
-A learned vision embedding is still the intended direction, but the highest-risk integration questions come first:
-
-- Can Creo batch-render thousands of models reliably?
-- Are the standardized views useful and stable?
-- Can models be loaded/cleaned without harming the working session?
-- Is the local index/update workflow usable?
-- Are image-to-CAD results useful enough to justify a larger runtime/model dependency?
-
-The deterministic signature lets those questions be tested immediately with no cloud service and no ML runtime installation.
-
-## Next technical milestone
-
-Benchmark this branch with roughly 100–500 representative parts and a query set containing:
-
-- an indexed render from a different view
-- a Creo screenshot
-- a clean catalog/product image
-- family variants
-- deliberately unrelated parts
+- Creo screenshots;
+- indexed renders from different orientations;
+- clean catalog/product images;
+- family variants;
+- long/thin and tall parts;
+- cluttered-background photos;
+- unrelated parts.
 
 Track at least:
 
-- Top-1 hit rate
-- Top-5 hit rate
-- Top-20 hit rate
-- indexing failures
-- average indexing time per model
-- incremental refresh time
+- Top-1 hit rate;
+- Top-5 hit rate;
+- Top-20 hit rate;
+- capture failures;
+- average indexing time/model;
+- incremental refresh time.
 
-Then compare `prototype-signature-v1` against a local ONNX vision encoder. The learned encoder should replace the prototype scorer only if retrieval quality materially improves enough to justify the model/runtime footprint.
+Compare Auto isolate ON/OFF for difficult real-world queries.
 
-## Remaining before calling v1 production-ready
+## Next retrieval milestone
 
-- Run a real Creo 9/Creo 11 compile and smoke test on the target workstation.
-- Validate view/raster behavior for already-open models and parts loaded only for indexing.
-- Confirm datum/spin-center/display settings are consistently excluded or normalize them during rendering.
-- Add a small repeatable retrieval benchmark.
-- Decide whether `prototype-signature-v1` is retained as a fallback or replaced by an ONNX embedding provider.
-- Tune cache cleanup for orphaned render files.
-- Add release/version notes only after the branch passes workstation validation.
+Do **not** increase the view count until the 8-view inspector confirms the capture profile is correct on the target Creo workstation.
+
+After that validation:
+
+1. expand the verified canonical view set toward roughly 24 views;
+2. benchmark `hybrid-shape-v2`;
+3. add a local learned ONNX vision-embedding provider behind the same descriptor/index boundary;
+4. retrieve broadly with the learned embedding and rerank the top candidates with the existing silhouette/edge/proportion signals;
+5. retain the deterministic v2 descriptor as a diagnostic/fallback if useful.
+
+The learned model asset/runtime is intentionally not bundled in this stabilization commit; capture correctness and Creo responsiveness must be verified first so model-quality testing is not contaminated by bad source views.
