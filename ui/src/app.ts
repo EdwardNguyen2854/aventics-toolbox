@@ -12,7 +12,10 @@ const defaultState = {
       family: true, generic: false, step: true, autoArrange: true, rowsAlongX: false,
       useZ: false, columns: 5, gap: 50
     },
-    instances: { folder: "", codes: "", recursive: false, latest: true, columns: 5, gap: 50 }
+    instances: {
+      folder: "", codes: "", recursive: false, latest: true,
+      rowsAlongX: false, useZ: false, columns: 5, gap: 50
+    }
   },
   weakResults: [],
   accuracyResults: [],
@@ -363,7 +366,7 @@ function pageInstances() {
     </div>
 
     <div class="panel">
-      <div class="panel-header"><h3>Placement</h3><span class="muted">Row-major grid · unresolved positions remain empty</span></div>
+      <div class="panel-header"><h3>Placement</h3><span class="muted">Unconstrained grid placement</span></div>
       <div class="panel-body"><div class="form-grid">
         <div class="field span-3">
           <label>Columns</label>
@@ -376,11 +379,12 @@ function pageInstances() {
           <div class="field-help">Spacing between planned positions</div>
         </div>
         <div class="field span-6">
-          <span class="field-label">Layout behavior</span>
-          <div class="option-summary">
-            <strong>Preserve request positions</strong>
-            <span>Missing instances leave an empty grid position so later requests keep their original row and column.</span>
+          <span class="field-label">Layout</span>
+          <div class="checks">
+            <label class="check"><input type="checkbox" data-draft="instances.rowsAlongX" ${checked(draft.instances.rowsAlongX)} ${disabled(state.busy)} />Rows advance along X</label>
+            <label class="check"><input type="checkbox" data-draft="instances.useZ" ${checked(draft.instances.useZ)} ${disabled(state.busy)} />Use X-Z plane</label>
           </div>
+          <div class="field-help">Missing instances keep their allocated grid positions empty.</div>
         </div>
         <div class="span-12 toolbar action-bar">
           <span class="notice">Preview the plan first when you want to verify row and column allocation before modifying the assembly.</span>
@@ -454,7 +458,8 @@ function planInstances() {
 
 function runInstances() {
   send("runInstances", draft.instances.folder, bool(draft.instances.recursive), bool(draft.instances.latest),
-    draft.instances.codes, draft.instances.columns, draft.instances.gap);
+    draft.instances.codes, draft.instances.columns, draft.instances.gap,
+    bool(draft.instances.rowsAlongX), bool(draft.instances.useZ));
 }
 
 app.addEventListener("click", event => {

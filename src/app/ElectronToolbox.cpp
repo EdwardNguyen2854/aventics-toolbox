@@ -786,7 +786,7 @@ private:
     }
 
     void RunInstances(const std::vector<std::wstring>& fields) {
-        if (busy_ || fields.size() < 7) return;
+        if (busy_ || fields.size() < 9) return;
         ProMdl current = nullptr;
         if (ModelUtils::CurrentModel(&current) != PRO_TK_NO_ERROR || !ModelUtils::IsAssembly(current)) {
             statusMessage_ = L"Open or create an assembly before building instances.";
@@ -797,6 +797,8 @@ private:
         InstanceBuilderOptions options;
         options.includeSubfolders = ParseBool(fields[2]);
         options.latestCreoVersionOnly = ParseBool(fields[3]);
+        options.arrangeRowsAlongX = ParseBool(fields[7]);
+        options.useZAxisForRows = ParseBool(fields[8]);
         if (!ParsePositiveInt(fields[5], options.columns)) {
             statusMessage_ = L"Columns must be a whole number of 1 or greater.";
             SendState();
@@ -825,6 +827,8 @@ private:
         context.instanceFolder = fields[1];
         context.instanceRecursive = options.includeSubfolders;
         context.instanceLatest = options.latestCreoVersionOnly;
+        context.instanceRowsAlongX = options.arrangeRowsAlongX;
+        context.instanceUseZAxis = options.useZAxisForRows;
         context.instanceCodes = fields[4];
         context.instanceColumns = options.columns;
         context.instanceGap = options.gap;
@@ -1074,6 +1078,8 @@ private:
             << ",\"codes\":" << JsonString(context.instanceCodes)
             << ",\"recursive\":" << JsonBool(context.instanceRecursive)
             << ",\"latest\":" << JsonBool(context.instanceLatest)
+            << ",\"rowsAlongX\":" << JsonBool(context.instanceRowsAlongX)
+            << ",\"useZ\":" << JsonBool(context.instanceUseZAxis)
             << ",\"columns\":" << context.instanceColumns
             << ",\"gap\":" << context.instanceGap << "}";
         out << "}";

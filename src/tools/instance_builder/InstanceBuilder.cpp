@@ -216,17 +216,19 @@ void InstanceBuilder::Finalize(std::vector<InstanceBuildResult>& results) {
     results.clear();
     results.reserve(requests_.size());
 
-    double maxWidth = 1.0;
-    double maxDepth = 1.0;
+    double maxXSpan = 1.0;
+    double maxSecondarySpan = 1.0;
     for (const auto& resolution : resolutions_) {
         if (!resolution.model || !ModelUtils::IsSolid(resolution.model)) continue;
         Pro3dPnt outline[2]{};
         if (ProSolidOutlineGet(reinterpret_cast<ProSolid>(resolution.model), outline) != PRO_TK_NO_ERROR) continue;
-        maxWidth = std::max(maxWidth, std::abs(outline[1][0] - outline[0][0]));
-        maxDepth = std::max(maxDepth, std::abs(outline[1][1] - outline[0][1]));
+        maxXSpan = std::max(maxXSpan, std::abs(outline[1][0] - outline[0][0]));
+        const int secondaryAxis = options_.useZAxisForRows ? 2 : 1;
+        maxSecondarySpan = std::max(maxSecondarySpan,
+            std::abs(outline[1][secondaryAxis] - outline[0][secondaryAxis]));
     }
-    const double cellWidth = maxWidth + options_.gap;
-    const double cellDepth = maxDepth + options_.gap;
+    const double xStep = maxXSpan + options_.gap;
+    const double secondaryStep = maxSecondarySpan + options_.gap;
 
     for (std::size_t i = 0; i < requests_.size(); ++i) {
         const auto& request = requests_[i];
@@ -271,18 +273,30 @@ void InstanceBuilder::Finalize(std::vector<InstanceBuildResult>& results) {
             continue;
         }
 
+        const double rowOffset = static_cast<double>(request.row - 1);
+        const double columnOffset = static_cast<double>(request.column - 1);
+        const double xPosition = (options_.arrangeRowsAlongX ? rowOffset : columnOffset) * xStep;
+        const double secondaryPosition = (options_.arrangeRowsAlongX ? columnOffset : rowOffset) * secondaryStep;
+
         ProMatrix matrix{};
         Identity(matrix);
-        matrix[3][0] = static_cast<double>(request.column - 1) * cellWidth - outline[0][0];
-        matrix[3][1] = static_cast<double>(request.row - 1) * cellDepth - outline[0][1];
-        matrix[3][2] = -outline[0][2];
+        matrix[3][0] = xPosition - outline[0][0];
+        if (options_.useZAxisForRows) {
+            matrix[3][1] = -outline[0][1];
+            matrix[3][2] = secondaryPosition - outline[0][2];
+        } else {
+            matrix[3][1] = secondaryPosition - outline[0][1];
+            matrix[3][2] = -outline[0][2];
+        }
 
         ProAsmcomp component;
         const ProError assembleErr = ProAsmcompAssemble(targetAssembly_, reinterpret_cast<ProSolid>(resolution.model), matrix, &component);
         if (assembleErr == PRO_TK_NO_ERROR) {
             result.status = InstanceBuildStatus::Added;
             result.componentFeatureId = component.id;
-            result.details = L"Added unconstrained at allocated row/column.";
+            result.details = options_.useZAxisForRows
+                ? L"Added unconstrained at allocated row/column on the X-Z plane."
+                : L"Added unconstrained at allocated row/column on the X-Y plane.";
             Logger::Info(L"Instance Builder added " + result.addedModelName + L" at row " +
                          std::to_wstring(result.row) + L", column " + std::to_wstring(result.column));
         } else {

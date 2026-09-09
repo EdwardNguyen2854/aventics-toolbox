@@ -148,6 +148,11 @@ struct InspectionOptions {
 struct InstanceBuilderOptions {
     bool includeSubfolders = false;
     bool latestCreoVersionOnly = true;
+    // false: columns advance along X and rows advance along the secondary axis.
+    // true: columns advance along the secondary axis and rows advance along X.
+    bool arrangeRowsAlongX = false;
+    // false uses X-Y placement; true uses X-Z placement.
+    bool useZAxisForRows = false;
     int columns = 5;
     double gap = 50.0; // active assembly units
 };
