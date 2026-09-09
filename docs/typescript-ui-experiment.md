@@ -60,33 +60,41 @@ The normal Creo TOOLKIT build prerequisites still apply. The experiment addition
 
 1. Node.js LTS (`npm` on PATH).
 2. Microsoft WebView2 Runtime installed on the Creo workstation.
-3. The `Microsoft.Web.WebView2` NuGet package extracted locally so the native header and `WebView2Loader.dll` are available at build time.
+3. Network access to `api.nuget.org` on the first build, unless a WebView2 SDK package is already supplied locally.
 
-Example with `nuget.exe`:
+The build pins `Microsoft.Web.WebView2` version `1.0.4191.47` and automatically downloads/extracts it into:
 
-```powershell
-mkdir external -ErrorAction SilentlyContinue
-nuget install Microsoft.Web.WebView2 -OutputDirectory external
-$pkg = Get-ChildItem .\external -Directory -Filter "Microsoft.Web.WebView2*" |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-$env:WEBVIEW2_SDK_DIR = $pkg.FullName
+```text
+external/Microsoft.Web.WebView2.1.0.4191.47/
 ```
 
-Do not commit the extracted package; `/external/` is ignored.
+`/external/` is git-ignored, so the SDK is cached locally and is not committed.
 
-## Build
-
-For the existing local Creo 9 build flow:
+If the workstation cannot access NuGet, manually extract a `Microsoft.Web.WebView2` NuGet package and either set:
 
 ```powershell
 $env:WEBVIEW2_SDK_DIR = "C:\path\to\Microsoft.Web.WebView2.<version>"
+```
+
+or pass `-WebView2Sdk` to `build.ps1` / `build-and-unlock.ps1`.
+
+The package root must contain:
+
+```text
+build/native/include/WebView2.h
+```
+
+## Build
+
+For the existing local Creo 9 build flow, no extra WebView2 SDK setup should normally be needed:
+
+```powershell
 .\build-local.ps1
 ```
 
-Or pass the package root directly to `build.ps1` / `build-and-unlock.ps1` with `-WebView2Sdk`.
+On the first run, the script downloads the pinned WebView2 SDK. Later builds reuse the cached package under `external/`.
 
-CMake runs the TypeScript compiler and deploys these runtime files:
+CMake type-checks/compiles the TypeScript UI and deploys these runtime files:
 
 ```text
 dist/x86e_win64/obj/
@@ -97,6 +105,8 @@ dist/x86e_win64/obj/
     styles.css
     app.js
 ```
+
+The UI assets remain external during the experiment so they can be iterated quickly without embedding resources into the DLL.
 
 ## Test checklist
 
@@ -114,7 +124,7 @@ dist/x86e_win64/obj/
 12. Temporarily remove `WebView2Loader.dll` and confirm the native Creo UI opens synchronously.
 13. Test on a machine without WebView2 Runtime if available and confirm the native fallback opens.
 14. Temporarily break `ui/app.js` or the ready handshake and confirm the startup watchdog closes the web host and opens the native UI.
-15. Attempt external navigation/new-window creation from DevTools in a development build or temporary test page and confirm it is blocked.
+15. Attempt external navigation/new-window creation from a temporary test page and confirm it is blocked.
 16. Restart Creo after rebuilding the DLL; do not use hot stop/reload on this branch.
 
 ## Current boundaries
@@ -123,5 +133,6 @@ dist/x86e_win64/obj/
 - The existing native Creo dialog remains compiled as fallback and as a behavior reference.
 - UI assets and the WebView2 loader remain external beside the DLL during the experiment.
 - Tool orchestration is still duplicated between the native dialog and WebView host. A future cleanup should extract a UI-independent controller shared by both front ends before this becomes the production default.
+- The web UI does not yet restore every native result action such as Open Model / Goto Feature.
 - Full-result snapshots are batched, but very large result sets may eventually warrant table virtualization and a delta-result protocol.
 - This branch still requires compile/runtime verification on the target Windows/Creo workstation because CI here does not have the PTC TOOLKIT libraries.
