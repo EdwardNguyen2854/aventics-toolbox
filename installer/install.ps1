@@ -29,12 +29,18 @@ if (-not (Test-Path $DiagnosticSource)) {
 
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 $BinDestination = Join-Path $Destination "bin"
+$TextDestination = Join-Path $Destination "text"
 $LogDestination = Join-Path $Destination "logs"
+
+# Reinstalls are intentionally clean for team testing. Preserve logs so a
+# previous failure can still be compared with the next package.
+if (Test-Path $BinDestination) { Remove-Item $BinDestination -Recurse -Force }
+if (Test-Path $TextDestination) { Remove-Item $TextDestination -Recurse -Force }
 New-Item -ItemType Directory -Path $BinDestination -Force | Out-Null
 New-Item -ItemType Directory -Path $LogDestination -Force | Out-Null
 
 Copy-Item (Join-Path $BinSource "*") $BinDestination -Recurse -Force
-Copy-Item $TextSource (Join-Path $Destination "text") -Recurse -Force
+Copy-Item $TextSource $TextDestination -Recurse -Force
 Copy-Item $DiagnosticSource (Join-Path $Destination "diagnose.ps1") -Force
 if (Test-Path $VersionSource) { Copy-Item $VersionSource $Destination -Force }
 
