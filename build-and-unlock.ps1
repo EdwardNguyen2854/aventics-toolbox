@@ -11,7 +11,8 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$UnlockBat,
 
-    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR
+    [string]$WebView2Sdk = $env:WEBVIEW2_SDK_DIR,
+    [string]$WebView2Version = "1.0.4191.47"
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,7 +23,8 @@ $Dll = Join-Path $Root "dist\x86e_win64\obj\aventics_toolbox.dll"
     -ToolkitInclude $ToolkitInclude `
     -ToolkitLib $ToolkitLib `
     -CreoCommonLib $CreoCommonLib `
-    -WebView2Sdk $WebView2Sdk
+    -WebView2Sdk $WebView2Sdk `
+    -WebView2Version $WebView2Version
 
 if (-not (Test-Path $UnlockBat)) {
     throw "protk_unlock.bat not found: $UnlockBat"
