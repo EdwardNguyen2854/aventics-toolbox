@@ -1,0 +1,31 @@
+name: TypeScript UI
+
+on:
+  push:
+    branches:
+      - fix/typescript-webview-review
+  pull_request:
+    paths:
+      - "ui/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/typescript-ui.yml"
+
+jobs:
+  build-ui:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install pinned UI dependency
+        working-directory: ui
+        run: npm install --no-audit --no-fund --no-package-lock
+
+      - name: Type-check and compile UI
+        working-directory: ui
+        run: npm run build
