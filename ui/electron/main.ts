@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import net from "node:net";
 import path from "node:path";
 
@@ -6,8 +6,12 @@ let mainWindow: BrowserWindow | null = null;
 let pipe: net.Socket | null = null;
 let reconnectTimer: NodeJS.Timeout | null = null;
 let receiveBuffer = "";
+let similarPipe: net.Socket | null = null;
+let similarReconnectTimer: NodeJS.Timeout | null = null;
+let similarReceiveBuffer = "";
 let shuttingDown = false;
 let lastState: any = null;
+let lastSimilarState: any = null;
 
 function argValue(name: string): string {
   const index = process.argv.indexOf(name);
@@ -16,6 +20,7 @@ function argValue(name: string): string {
 
 const pipeName = argValue("--pipe");
 const creoPid = argValue("--creo-pid");
+const similarPipeName = creoPid ? `\\\\.\\pipe\\aventics-similar-cad-${creoPid}` : "";
 const mockMode = process.argv.includes("--mock") || !pipeName;
 
 function mockState(message = "Mock Creo session — Electron UI preview") {
@@ -33,12 +38,27 @@ function mockState(message = "Mock Creo session — Electron UI preview") {
         family: true, generic: false, step: true, autoArrange: true, rowsAlongX: false,
         useZ: false, columns: 5, gap: 50
       },
-      instances: { folder: "", codes: "", recursive: false, latest: true, columns: 5, gap: 50 }
+      instances: {
+        folder: "", codes: "", recursive: false, latest: true,
+        rowsAlongX: false, useZ: false, columns: 5, columnGap: 50, rowGap: 50
+      }
     },
     weakResults: [],
     accuracyResults: [],
     inspectionResults: [],
     instanceResults: []
+  };
+}
+
+function mockSimilarState(message = "Similar CAD Search mock mode") {
+  return {
+    type: "similarState",
+    protocolVersion: 1,
+    busy: false,
+    progress: { done: 0, total: 0, indexed: 0, skipped: 0, failed: 0, message },
+    settings: { folder: "", queryImage: "", recursive: false, latest: true, topK: 20 },
+    index: { models: 0, views: 0, cachePath: "", engine: "prototype-signature-v1" },
+    results: []
   };
 }
 
@@ -48,12 +68,27 @@ function sendStateToRenderer(state: any) {
   mainWindow.webContents.send("aventics:state", state);
 }
 
+function sendSimilarStateToRenderer(state: any) {
+  lastSimilarState = state;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("aventics:similar-state", state);
+}
+
 function sendDisconnected(message: string) {
   const base = lastState || mockState(message);
   sendStateToRenderer({
     ...base,
     busy: false,
     operation: "",
+    progress: { ...(base.progress || {}), done: 0, total: 0, message }
+  });
+}
+
+function sendSimilarDisconnected(message: string) {
+  const base = lastSimilarState || mockSimilarState(message);
+  sendSimilarStateToRenderer({
+    ...base,
+    busy: false,
     progress: { ...(base.progress || {}), done: 0, total: 0, message }
   });
 }
@@ -86,11 +121,29 @@ function handleNativeMessage(line: string) {
   }
 }
 
+function handleSimilarNativeMessage(line: string) {
+  if (!line.trim()) return;
+  try {
+    const message = JSON.parse(line);
+    if (message && message.type === "similarState") sendSimilarStateToRenderer(message);
+  } catch (error) {
+    console.error("Invalid message from Similar CAD bridge", error, line);
+  }
+}
+
 function scheduleReconnect() {
   if (mockMode || shuttingDown || reconnectTimer) return;
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connectPipe();
+  }, 1000);
+}
+
+function scheduleSimilarReconnect() {
+  if (mockMode || shuttingDown || similarReconnectTimer || !similarPipeName) return;
+  similarReconnectTimer = setTimeout(() => {
+    similarReconnectTimer = null;
+    connectSimilarPipe();
   }, 1000);
 }
 
@@ -133,6 +186,45 @@ function connectPipe() {
   });
 }
 
+function connectSimilarPipe() {
+  if (mockMode || shuttingDown || !similarPipeName) return;
+  if (similarPipe && !similarPipe.destroyed) return;
+
+  const socket = net.createConnection(similarPipeName);
+  similarPipe = socket;
+  similarReceiveBuffer = "";
+  socket.setEncoding("utf8");
+
+  socket.on("connect", () => {
+    socket.write("ready\n");
+  });
+
+  socket.on("data", (chunk: string) => {
+    similarReceiveBuffer += chunk;
+    for (;;) {
+      const newline = similarReceiveBuffer.indexOf("\n");
+      if (newline < 0) break;
+      const line = similarReceiveBuffer.slice(0, newline).replace(/\r$/, "");
+      similarReceiveBuffer = similarReceiveBuffer.slice(newline + 1);
+      handleSimilarNativeMessage(line);
+    }
+  });
+
+  socket.on("error", (error: NodeJS.ErrnoException) => {
+    if (!shuttingDown && error.code !== "ENOENT" && error.code !== "ECONNREFUSED") {
+      console.error("Similar CAD named-pipe error", error);
+    }
+  });
+
+  socket.on("close", () => {
+    if (similarPipe === socket) similarPipe = null;
+    if (!shuttingDown) {
+      sendSimilarDisconnected("Similar CAD service disconnected — reconnecting...");
+      scheduleSimilarReconnect();
+    }
+  });
+}
+
 function sendToCreo(message: string) {
   if (message === "toggleMaximize") {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -155,6 +247,44 @@ function sendToCreo(message: string) {
   pipe.write(`${message}\n`);
 }
 
+function sendSimilarToCreo(message: string) {
+  if (mockMode) {
+    if (message === "ready" || message === "refresh") sendSimilarStateToRenderer(mockSimilarState());
+    else sendSimilarStateToRenderer(mockSimilarState(`Mock mode received: ${message.split("\t", 1)[0]}`));
+    return;
+  }
+
+  if (!similarPipe || similarPipe.destroyed || !similarPipe.writable) {
+    sendSimilarDisconnected("Waiting for Similar CAD service...");
+    scheduleSimilarReconnect();
+    return;
+  }
+  similarPipe.write(`${message}\n`);
+}
+
+async function chooseImage(): Promise<string> {
+  if (!mainWindow || mainWindow.isDestroyed()) return "";
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose Similar CAD query image",
+    properties: ["openFile"],
+    filters: [
+      { name: "Images", extensions: ["png", "jpg", "jpeg", "bmp"] },
+      { name: "All files", extensions: ["*"] }
+    ]
+  });
+  return result.canceled || !result.filePaths.length ? "" : result.filePaths[0];
+}
+
+async function chooseSimilarFolder(defaultPath = ""): Promise<string> {
+  if (!mainWindow || mainWindow.isDestroyed()) return "";
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose Creo part library",
+    defaultPath: defaultPath || undefined,
+    properties: ["openDirectory"]
+  });
+  return result.canceled || !result.filePaths.length ? "" : result.filePaths[0];
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1240,
@@ -175,8 +305,13 @@ function createWindow() {
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
-    if (mockMode) sendStateToRenderer(mockState());
-    else connectPipe();
+    if (mockMode) {
+      sendStateToRenderer(mockState());
+      sendSimilarStateToRenderer(mockSimilarState());
+    } else {
+      connectPipe();
+      connectSimilarPipe();
+    }
   });
 
   mainWindow.on("closed", () => {
@@ -187,6 +322,13 @@ function createWindow() {
 }
 
 ipcMain.on("aventics:send", (_event, message) => sendToCreo(String(message)));
+ipcMain.on("aventics:similar-send", (_event, message) => sendSimilarToCreo(String(message)));
+ipcMain.handle("aventics:similar-choose-image", () => chooseImage());
+ipcMain.handle("aventics:similar-choose-folder", (_event, defaultPath) => chooseSimilarFolder(String(defaultPath || "")));
+ipcMain.handle("aventics:similar-locate", (_event, filePath) => {
+  const value = String(filePath || "");
+  if (value) shell.showItemInFolder(value);
+});
 
 app.whenReady().then(createWindow);
 
@@ -194,7 +336,11 @@ app.on("window-all-closed", () => {
   shuttingDown = true;
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
+  if (similarReconnectTimer) clearTimeout(similarReconnectTimer);
+  similarReconnectTimer = null;
   if (pipe) pipe.destroy();
   pipe = null;
+  if (similarPipe) similarPipe.destroy();
+  similarPipe = null;
   app.quit();
 });
