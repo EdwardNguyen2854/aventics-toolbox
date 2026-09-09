@@ -1,8 +1,8 @@
 #include <ProToolkit.h>
 #include "app/Commands.h"
 #include "app/ToolboxDialog.h"
-#ifdef AVENTICS_TYPESCRIPT_UI
-#include "app/WebToolbox.h"
+#ifdef AVENTICS_ELECTRON_UI
+#include "app/ElectronToolbox.h"
 #endif
 #include "common/Logger.h"
 #include "common/ModelUtils.h"
@@ -51,10 +51,10 @@ void ShowToolboxOpenError(ProError error) {
 
 int OpenToolbox(uiCmdCmdId, uiCmdValue*, void*) {
     ProError err = PRO_TK_GENERAL_ERROR;
-#ifdef AVENTICS_TYPESCRIPT_UI
-    err = WebToolbox::Show();
+#ifdef AVENTICS_ELECTRON_UI
+    err = ElectronToolbox::Show();
     if (err != PRO_TK_NO_ERROR) {
-        Logger::Warn(L"TypeScript/WebView2 toolbox did not open. Falling back to the native Creo UI.");
+        Logger::Warn(L"Electron toolbox did not open. Falling back to the native Creo UI.");
         err = ToolboxDialog::Show();
     }
 #else
@@ -90,8 +90,6 @@ ProError RegisterAventicsToolboxCommands() {
                     const_cast<char*>("AVT.Command.Description"),
                     messageFile);
 
-    // Classic menu is a development-safe launcher. The same command is also
-    // available under TOOLKIT Commands for placement on a Creo ribbon tab/group.
     ProMenubarMenuAdd(const_cast<char*>("AVTMenu"),
                       const_cast<char*>("AVT.Menu.Label"),
                       const_cast<char*>("Info"),
