@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0-experiment",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "5.9.2"
   }
 }
