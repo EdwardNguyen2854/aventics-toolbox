@@ -53,12 +53,20 @@ function mockState(message = "Mock Creo session — Electron UI preview") {
 function mockSimilarState(message = "Similar CAD Search mock mode") {
   return {
     type: "similarState",
-    protocolVersion: 1,
+    protocolVersion: 2,
     busy: false,
-    progress: { done: 0, total: 0, indexed: 0, skipped: 0, failed: 0, message },
-    settings: { folder: "", queryImage: "", recursive: false, latest: true, topK: 20 },
-    index: { models: 0, views: 0, cachePath: "", engine: "prototype-signature-v1" },
-    results: []
+    progress: {
+      done: 0, total: 0, indexed: 0, skipped: 0, failed: 0,
+      currentModel: "", viewDone: 0, viewTotal: 8, currentView: "", message
+    },
+    settings: { folder: "", queryImage: "", recursive: false, latest: true, topK: 20, autoCrop: true },
+    index: {
+      models: 0, views: 0, viewCountPerModel: 8, cachePath: "",
+      engine: "hybrid-shape-v2", captureProfile: "canonical-matrix-8-v2"
+    },
+    query: { ready: false, processedPath: "", aspectRatio: 0, fillRatio: 0, autoCrop: true },
+    results: [],
+    library: { requested: false, filter: "", page: 1, pageSize: 24, total: 0, items: [], inspected: null }
   };
 }
 
@@ -340,6 +348,7 @@ app.on("window-all-closed", () => {
   similarReconnectTimer = null;
   if (pipe) pipe.destroy();
   pipe = null;
+  if (similarPipe) pipe = null;
   if (similarPipe) similarPipe.destroy();
   similarPipe = null;
   app.quit();
