@@ -43,7 +43,9 @@ public:
     bool instanceUseZAxis = false;
     bool instanceUnresolvedOnly = false;
     int instanceColumns = 5;
-    double instanceGap = 50.0;
+    double instanceGap = 50.0; // legacy/native fallback
+    double instanceColumnGap = 50.0;
+    double instanceRowGap = 50.0;
 
     std::vector<WeakResult> weakResults;
     std::vector<AccuracyResult> accuracyResults;

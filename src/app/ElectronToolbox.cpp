@@ -786,7 +786,7 @@ private:
     }
 
     void RunInstances(const std::vector<std::wstring>& fields) {
-        if (busy_ || fields.size() < 9) return;
+        if (busy_ || fields.size() < 10) return;
         ProMdl current = nullptr;
         if (ModelUtils::CurrentModel(&current) != PRO_TK_NO_ERROR || !ModelUtils::IsAssembly(current)) {
             statusMessage_ = L"Open or create an assembly before building instances.";
@@ -797,18 +797,24 @@ private:
         InstanceBuilderOptions options;
         options.includeSubfolders = ParseBool(fields[2]);
         options.latestCreoVersionOnly = ParseBool(fields[3]);
-        options.arrangeRowsAlongX = ParseBool(fields[7]);
-        options.useZAxisForRows = ParseBool(fields[8]);
+        options.arrangeRowsAlongX = ParseBool(fields[8]);
+        options.useZAxisForRows = ParseBool(fields[9]);
         if (!ParsePositiveInt(fields[5], options.columns)) {
             statusMessage_ = L"Columns must be a whole number of 1 or greater.";
             SendState();
             return;
         }
-        if (!ParseNonNegativeDouble(fields[6], options.gap)) {
-            statusMessage_ = L"Gap must be a finite number of 0 or greater.";
+        if (!ParseNonNegativeDouble(fields[6], options.columnGap)) {
+            statusMessage_ = L"Column gap must be a finite number of 0 or greater.";
             SendState();
             return;
         }
+        if (!ParseNonNegativeDouble(fields[7], options.rowGap)) {
+            statusMessage_ = L"Row gap must be a finite number of 0 or greater.";
+            SendState();
+            return;
+        }
+        options.gap = options.columnGap;
 
         std::vector<InstanceRequest> requests;
         std::wstring error;
@@ -831,7 +837,9 @@ private:
         context.instanceUseZAxis = options.useZAxisForRows;
         context.instanceCodes = fields[4];
         context.instanceColumns = options.columns;
-        context.instanceGap = options.gap;
+        context.instanceGap = options.columnGap;
+        context.instanceColumnGap = options.columnGap;
+        context.instanceRowGap = options.rowGap;
 
         const auto scan = FolderScanner::Discover(context.instanceFolder, InstanceFolderOptions(options));
         if (!scan.error.empty() || scan.models.empty()) {
@@ -1081,7 +1089,9 @@ private:
             << ",\"rowsAlongX\":" << JsonBool(context.instanceRowsAlongX)
             << ",\"useZ\":" << JsonBool(context.instanceUseZAxis)
             << ",\"columns\":" << context.instanceColumns
-            << ",\"gap\":" << context.instanceGap << "}";
+            << ",\"gap\":" << context.instanceGap
+            << ",\"columnGap\":" << context.instanceColumnGap
+            << ",\"rowGap\":" << context.instanceRowGap << "}";
         out << "}";
 
         out << ",\"weakResults\":[";

@@ -14,7 +14,7 @@ const defaultState = {
     },
     instances: {
       folder: "", codes: "", recursive: false, latest: true,
-      rowsAlongX: false, useZ: false, columns: 5, gap: 50
+      rowsAlongX: false, useZ: false, columns: 5, columnGap: 50, rowGap: 50
     }
   },
   weakResults: [],
@@ -368,15 +368,20 @@ function pageInstances() {
     <div class="panel">
       <div class="panel-header"><h3>Placement</h3><span class="muted">Unconstrained grid placement</span></div>
       <div class="panel-body"><div class="form-grid">
-        <div class="field span-3">
+        <div class="field span-2">
           <label>Columns</label>
           <input class="input" type="number" min="1" data-draft="instances.columns" value="${esc(draft.instances.columns)}" ${disabled(state.busy)} />
           <div class="field-help">Instances per row</div>
         </div>
-        <div class="field span-3">
-          <label>Gap</label>
-          <input class="input" type="number" min="0" step="any" data-draft="instances.gap" value="${esc(draft.instances.gap)}" ${disabled(state.busy)} />
-          <div class="field-help">Spacing between planned positions</div>
+        <div class="field span-2">
+          <label>Column gap</label>
+          <input class="input" type="number" min="0" step="any" data-draft="instances.columnGap" value="${esc(draft.instances.columnGap)}" ${disabled(state.busy)} />
+          <div class="field-help">Between columns</div>
+        </div>
+        <div class="field span-2">
+          <label>Row gap</label>
+          <input class="input" type="number" min="0" step="any" data-draft="instances.rowGap" value="${esc(draft.instances.rowGap)}" ${disabled(state.busy)} />
+          <div class="field-help">Between rows</div>
         </div>
         <div class="field span-6">
           <span class="field-label">Layout</span>
@@ -384,10 +389,10 @@ function pageInstances() {
             <label class="check"><input type="checkbox" data-draft="instances.rowsAlongX" ${checked(draft.instances.rowsAlongX)} ${disabled(state.busy)} />Rows advance along X</label>
             <label class="check"><input type="checkbox" data-draft="instances.useZ" ${checked(draft.instances.useZ)} ${disabled(state.busy)} />Use X-Z plane</label>
           </div>
-          <div class="field-help">Missing instances keep their allocated grid positions empty.</div>
+          <div class="field-help">Gaps follow logical rows and columns when the grid is transposed.</div>
         </div>
         <div class="span-12 toolbar action-bar">
-          <span class="notice">Preview the plan first when you want to verify row and column allocation before modifying the assembly.</span>
+          <span class="notice">Missing instances keep their allocated grid positions empty.</span>
           <div class="toolbar-right">
             <button class="btn" data-action="planInstances" ${disabled(state.busy)}>Plan positions</button>
             <button class="btn primary" data-action="runInstances" ${disabled(state.busy || !state.activeModel.isAssembly)}>Build instances</button>
@@ -458,7 +463,7 @@ function planInstances() {
 
 function runInstances() {
   send("runInstances", draft.instances.folder, bool(draft.instances.recursive), bool(draft.instances.latest),
-    draft.instances.codes, draft.instances.columns, draft.instances.gap,
+    draft.instances.codes, draft.instances.columns, draft.instances.columnGap, draft.instances.rowGap,
     bool(draft.instances.rowsAlongX), bool(draft.instances.useZ));
 }
 
