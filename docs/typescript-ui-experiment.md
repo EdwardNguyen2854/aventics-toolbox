@@ -35,31 +35,39 @@ The normal Creo TOOLKIT build prerequisites still apply. The experiment addition
 
 1. Node.js LTS (`npm` on PATH).
 2. Microsoft WebView2 Runtime installed on the Creo workstation. Current Windows/Edge installations normally include it, but verify it if the window fails to initialize.
-3. The `Microsoft.Web.WebView2` NuGet package extracted locally so the native header and `WebView2Loader.dll` are available at build time.
+3. Network access to `api.nuget.org` on the first build, unless a WebView2 SDK package is already supplied locally.
 
-Example with `nuget.exe`:
+The build pins `Microsoft.Web.WebView2` version `1.0.4191.47` and automatically downloads/extracts it into:
 
-```powershell
-mkdir external -ErrorAction SilentlyContinue
-nuget install Microsoft.Web.WebView2 -OutputDirectory external
-$pkg = Get-ChildItem .\external -Directory -Filter "Microsoft.Web.WebView2*" |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-$env:WEBVIEW2_SDK_DIR = $pkg.FullName
+```text
+external/Microsoft.Web.WebView2.1.0.4191.47/
 ```
 
-Do not commit the extracted package; `/external/` is ignored.
+`/external/` is git-ignored, so the SDK is cached locally and is not committed.
 
-## Build
-
-For the existing local Creo 9 build flow:
+If the workstation cannot access NuGet, manually extract a `Microsoft.Web.WebView2` NuGet package and either set:
 
 ```powershell
 $env:WEBVIEW2_SDK_DIR = "C:\path\to\Microsoft.Web.WebView2.<version>"
+```
+
+or pass `-WebView2Sdk` to `build.ps1` / `build-and-unlock.ps1`.
+
+The package root must contain:
+
+```text
+build/native/include/WebView2.h
+```
+
+## Build
+
+For the existing local Creo 9 build flow, no extra WebView2 setup should be needed:
+
+```powershell
 .\build-local.ps1
 ```
 
-Or pass the package root directly to `build.ps1` / `build-and-unlock.ps1` with `-WebView2Sdk`.
+On the first run, the script downloads the pinned WebView2 SDK. Later builds reuse the cached package under `external/`.
 
 CMake builds `ui/src/app.ts` into `ui/dist/app.js`, then copies these runtime files beside the DLL:
 
