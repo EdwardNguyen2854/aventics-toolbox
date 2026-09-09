@@ -5,6 +5,7 @@ README.md
 VERSION.txt
 build-and-unlock.ps1
 build-local.ps1
+build-ui.ps1
 build.ps1
 docs/API_NOTES.md
 docs/ARCHITECTURE.md
@@ -12,8 +13,11 @@ docs/CHANGELOG.md
 docs/DEVELOPMENT.md
 docs/RELEASE_PLAN_0.3.0.md
 docs/RELEASE_PLAN_0.4.0.md
+docs/typescript-ui-experiment.md
 include/app/AppContext.h
 include/app/Commands.h
+include/app/ElectronPipeShim.h
+include/app/ElectronToolbox.h
 include/app/ToolboxDialog.h
 include/app/Version.h
 include/common/FamilyTableService.h
@@ -44,6 +48,9 @@ protk.dat
 protk.dat.example
 src/app/AppContext.cpp
 src/app/Commands.cpp
+src/app/ElectronPipeShim.cpp
+src/app/ElectronToolbox.cpp
+src/app/ElectronToolboxSafe.cpp
 src/app/ToolboxDialog.cpp
 src/app/ToolboxDialogV050.cpp
 src/app/main.cpp
@@ -75,3 +82,13 @@ text/usascii/resource/aventics_weak.res
 text/usascii/resource/aventics_accuracy.res
 text/usascii/resource/aventics_inspection.res
 text/usascii/resource/aventics_instance_builder.res
+ui/build.mjs
+ui/electron-shim.js
+ui/electron/main.ts
+ui/electron/preload.ts
+ui/index.html
+ui/package.json
+ui/src/app.ts
+ui/src/webview.d.ts
+ui/styles.css
+ui/tsconfig.json

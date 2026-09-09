@@ -1,0 +1,15 @@
+{
+  "name": "aventics-toolbox-ui",
+  "private": true,
+  "version": "0.0.0-experiment",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "npm run build && electron . --mock",
+    "dev": "npm run build && electron . --mock"
+  },
+  "devDependencies": {
+    "electron": "38.0.0",
+    "typescript": "^5.9.2"
+  }
+}

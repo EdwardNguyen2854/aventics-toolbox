@@ -1,6 +1,9 @@
 #include <ProToolkit.h>
 #include "app/Commands.h"
 #include "app/ToolboxDialog.h"
+#ifdef AVENTICS_ELECTRON_UI
+#include "app/ElectronToolbox.h"
+#endif
 #include "common/Logger.h"
 #include "common/ModelUtils.h"
 
@@ -16,7 +19,7 @@ namespace {
 void ShowToolboxOpenError(ProError error) {
     const std::wstring title = L"Aventics Toolbox";
     const std::wstring message =
-        L"Aventics Toolbox could not open its native Creo dialog.\n\n"
+        L"Aventics Toolbox could not open its UI.\n\n"
         L"TOOLKIT error: " + ModelUtils::ErrorName(error) +
         L"\n\nCheck %LOCALAPPDATA%\\Aventics\\AventicsToolbox\\logs\\aventics_toolbox.log for details.";
 
@@ -47,9 +50,18 @@ void ShowToolboxOpenError(ProError error) {
 }
 
 int OpenToolbox(uiCmdCmdId, uiCmdValue*, void*) {
-    const ProError err = ToolboxDialog::Show();
+    ProError err = PRO_TK_GENERAL_ERROR;
+#ifdef AVENTICS_ELECTRON_UI
+    err = ElectronToolbox::Show();
     if (err != PRO_TK_NO_ERROR) {
-        Logger::Error(L"Toolbox dialog exited with " + ModelUtils::ErrorName(err));
+        Logger::Warn(L"Electron toolbox did not open. Falling back to the native Creo UI.");
+        err = ToolboxDialog::Show();
+    }
+#else
+    err = ToolboxDialog::Show();
+#endif
+    if (err != PRO_TK_NO_ERROR) {
+        Logger::Error(L"Toolbox UI exited with " + ModelUtils::ErrorName(err));
         ShowToolboxOpenError(err);
     }
     return 0;
@@ -78,8 +90,6 @@ ProError RegisterAventicsToolboxCommands() {
                     const_cast<char*>("AVT.Command.Description"),
                     messageFile);
 
-    // Classic menu is a development-safe launcher. The same command is also
-    // available under TOOLKIT Commands for placement on a Creo ribbon tab/group.
     ProMenubarMenuAdd(const_cast<char*>("AVTMenu"),
                       const_cast<char*>("AVT.Menu.Label"),
                       const_cast<char*>("Info"),

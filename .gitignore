@@ -1,6 +1,11 @@
 /build/
 /dist/
 /release/
+/external/
+/ui/node_modules/
+/ui/dist/
+/ui/dist-electron/
+/ui/package-lock.json
 *.user
 *.suo
 *.pdb

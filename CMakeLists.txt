@@ -30,6 +30,8 @@ add_library(AventicsToolbox SHARED
     src/app/main.cpp
     src/app/Commands.cpp
     src/app/ToolboxDialogV050.cpp
+    src/app/ElectronToolboxSafe.cpp
+    src/app/ElectronPipeShim.cpp
     src/app/AppContext.cpp
 
     src/common/ModelUtils.cpp
@@ -65,6 +67,7 @@ target_compile_definitions(AventicsToolbox PRIVATE
     _UNICODE
     UNICODE
     NOMINMAX
+    AVENTICS_ELECTRON_UI=1
 )
 
 target_link_directories(AventicsToolbox PRIVATE

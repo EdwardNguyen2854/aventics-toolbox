@@ -16,7 +16,7 @@ $Dll = Join-Path $Root "dist\x86e_win64\obj\aventics_toolbox.dll"
 
 Write-Host ""
 Write-Host "========================================"
-Write-Host " Aventics Toolbox v0.3.0 - Build"
+Write-Host " Aventics Toolbox - Native Backend Build"
 Write-Host "========================================"
 
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
@@ -44,5 +44,5 @@ if (-not (Test-Path $Dll)) {
 }
 
 Write-Host ""
-Write-Host "Build successful:"
+Write-Host "Native build successful:"
 Write-Host "  $Dll"

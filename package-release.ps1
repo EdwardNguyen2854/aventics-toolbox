@@ -6,8 +6,16 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $Dll = if ($DllPath) { (Resolve-Path $DllPath).Path } else { Join-Path $Root "dist\x86e_win64\obj\aventics_toolbox.dll" }
+$RuntimeDir = Split-Path -Parent $Dll
+$ElectronRuntime = Join-Path $RuntimeDir "electron"
 if (-not (Test-Path $Dll)) {
     throw "Build and unlock the DLL first: $Dll"
+}
+if (-not (Test-Path (Join-Path $ElectronRuntime "electron.exe"))) {
+    throw "Electron runtime is missing. Run .\build-ui.ps1 first: $ElectronRuntime"
+}
+if (-not (Test-Path (Join-Path $ElectronRuntime "app\package.json"))) {
+    throw "Electron application files are missing: $(Join-Path $ElectronRuntime 'app')"
 }
 
 $ResourceNames = @(
@@ -28,29 +36,31 @@ foreach ($ResourceName in $ResourceNames) {
     }
 }
 
-$ReleaseRoot = Join-Path $OutputDir "AventicsToolbox_v0.5.2"
+$ReleaseRoot = Join-Path $OutputDir "AventicsToolbox_v0.5.2_electron-ui"
 if (Test-Path $ReleaseRoot) { Remove-Item $ReleaseRoot -Recurse -Force }
 New-Item -ItemType Directory -Path (Join-Path $ReleaseRoot "bin") -Force | Out-Null
-New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
 
 Copy-Item $Dll (Join-Path $ReleaseRoot "bin\aventics_toolbox.dll") -Force
+Copy-Item $ElectronRuntime (Join-Path $ReleaseRoot "bin\electron") -Recurse -Force
 Copy-Item (Join-Path $Root "text") (Join-Path $ReleaseRoot "text") -Recurse -Force
 Copy-Item (Join-Path $Root "VERSION.txt") $ReleaseRoot -Force
 Copy-Item (Join-Path $Root "installer") (Join-Path $ReleaseRoot "installer") -Recurse -Force
 
 $Readme = @"
-Aventics Toolbox v0.5.2
+Aventics Toolbox v0.5.2 - Electron UI experiment
 
 1. Run .\installer\install.ps1
 2. Register the generated protk.dat in Creo -> Tools -> Auxiliary Applications.
 3. Open Aventics Toolbox from its menu / ribbon TOOLKIT command.
-4. Use the Control Panel to open each tool in its own native Creo GUI.
+4. Creo launches the Electron UI and communicates with it through a PID-specific Windows named pipe.
+5. The existing native Creo UI remains a fallback if Electron cannot be launched.
 
+No WebView2 SDK or WebView2Loader.dll is required.
 The release DLL must already be unlocked by the developer before packaging.
 "@
 Set-Content (Join-Path $ReleaseRoot "README.txt") $Readme -Encoding utf8
 
-$Zip = Join-Path $OutputDir "AventicsToolbox_v0.5.2_release.zip"
+$Zip = Join-Path $OutputDir "AventicsToolbox_v0.5.2_electron-ui.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 Compress-Archive -Path "$ReleaseRoot\*" -DestinationPath $Zip
 Write-Host "Created release package: $Zip"
