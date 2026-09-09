@@ -116,19 +116,47 @@ if(AVENTICS_TYPESCRIPT_UI)
 
     find_program(NPM_EXECUTABLE NAMES npm npm.cmd REQUIRED)
     set(AVENTICS_WEB_UI_JS "${CMAKE_CURRENT_SOURCE_DIR}/ui/dist/app.js")
+    set(AVENTICS_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj")
+    set(AVENTICS_WEB_UI_RUNTIME_DIR "${AVENTICS_RUNTIME_DIR}/ui")
+    set(AVENTICS_WEB_UI_STAMP "${CMAKE_CURRENT_BINARY_DIR}/aventics_web_ui_runtime.stamp")
+
     add_custom_command(
-        OUTPUT "${AVENTICS_WEB_UI_JS}"
-        COMMAND "${NPM_EXECUTABLE}" install --no-audit --no-fund
+        OUTPUT "${AVENTICS_WEB_UI_STAMP}"
+        COMMAND "${NPM_EXECUTABLE}" install --no-audit --no-fund --no-package-lock
         COMMAND "${NPM_EXECUTABLE}" run build
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AVENTICS_WEB_UI_RUNTIME_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${WEBVIEW2_LOADER_DLL}"
+            "${AVENTICS_RUNTIME_DIR}/WebView2Loader.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/ui/index.html"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/index.html"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/ui/styles.css"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/styles.css"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${AVENTICS_WEB_UI_JS}"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/app.js"
+        COMMAND ${CMAKE_COMMAND} -E touch "${AVENTICS_WEB_UI_STAMP}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ui"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/ui/package.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/ui/tsconfig.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/app.ts"
-        COMMENT "Building Aventics TypeScript UI"
+            "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/webview.d.ts"
+            "${CMAKE_CURRENT_SOURCE_DIR}/ui/index.html"
+            "${CMAKE_CURRENT_SOURCE_DIR}/ui/styles.css"
+            "${WEBVIEW2_LOADER_DLL}"
+        BYPRODUCTS
+            "${AVENTICS_WEB_UI_JS}"
+            "${AVENTICS_RUNTIME_DIR}/WebView2Loader.dll"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/index.html"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/styles.css"
+            "${AVENTICS_WEB_UI_RUNTIME_DIR}/app.js"
+        COMMENT "Type-checking and deploying Aventics TypeScript UI"
         VERBATIM
     )
-    add_custom_target(AventicsWebUi DEPENDS "${AVENTICS_WEB_UI_JS}")
+    add_custom_target(AventicsWebUi DEPENDS "${AVENTICS_WEB_UI_STAMP}")
     add_dependencies(AventicsToolbox AventicsWebUi)
 
     target_sources(AventicsToolbox PRIVATE src/app/WebToolbox.cpp)
@@ -156,21 +184,3 @@ add_custom_command(TARGET AventicsToolbox POST_BUILD
         "$<TARGET_FILE:AventicsToolbox>"
         "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/$<TARGET_FILE_NAME:AventicsToolbox>"
 )
-
-if(AVENTICS_TYPESCRIPT_UI)
-    add_custom_command(TARGET AventicsToolbox POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${WEBVIEW2_LOADER_DLL}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/WebView2Loader.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/index.html"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/index.html"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui/styles.css"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/styles.css"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${AVENTICS_WEB_UI_JS}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86e_win64/obj/ui/app.js"
-    )
-endif()
